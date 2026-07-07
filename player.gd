@@ -432,7 +432,8 @@ func _physics_process(delta):
 		velocity.y -= 9.8 * delta
 		
 	current_aim_target = Vector3.ZERO
-	var is_aiming = is_armed or grapple_equipped
+	var is_aiming = is_armed
+	var use_armed_anim = is_armed or grapple_equipped
 	if is_aiming:
 		var camera = get_viewport().get_camera_3d()
 		if camera:
@@ -467,13 +468,19 @@ func _physics_process(delta):
 	
 	if is_swinging:
 		if direction.length() > 0:
-			velocity += direction * 20.0 * delta
+			var player_pos = global_position + Vector3(0, 1, 0)
+			var rope_dir = (player_pos - grapple_point).normalized()
+			var swing_force = direction * 25.0 * delta
+			var force_dot = swing_force.dot(rope_dir)
+			velocity += (swing_force - rope_dir * force_dot)
 			
-		if not is_aiming and direction.length() > 0:
-			var target_rotation = atan2(direction.x, direction.z)
-			visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
+		if not is_aiming and velocity.length() > 0.5:
+			var planar_vel = Vector3(velocity.x, 0, velocity.z).normalized()
+			if planar_vel.length_squared() > 0.01:
+				var target_rotation = atan2(planar_vel.x, planar_vel.z)
+				visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
 			
-		var run_anim = "ArmedRun" if is_aiming else "Run"
+		var run_anim = "ArmedRun" if use_armed_anim else "Run"
 		if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
 			anim_player.play(run_anim, 0.2)
 	else:
@@ -485,14 +492,14 @@ func _physics_process(delta):
 				var target_rotation = atan2(direction.x, direction.z)
 				visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
 			
-			var run_anim = "ArmedRun" if is_aiming else "Run"
+			var run_anim = "ArmedRun" if use_armed_anim else "Run"
 			if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
 				anim_player.play(run_anim, 0.2)
 		else:
 			velocity.x = move_toward(velocity.x, 0, ACCELERATION * delta)
 			velocity.z = move_toward(velocity.z, 0, ACCELERATION * delta)
 			
-			var idle_anim = "ArmedIdle" if is_aiming else "Idle"
+			var idle_anim = "ArmedIdle" if use_armed_anim else "Idle"
 			if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
 				anim_player.play(idle_anim, 0.2)
 			
