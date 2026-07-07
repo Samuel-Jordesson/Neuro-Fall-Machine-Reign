@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://duu6o8ohnerm0"]
+[gd_scene format=3 uid="uid://d2umveryi4yc6"]
 
 [ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dbx52e4w1l" path="res://ak47_pickup.tscn" id="2_ak47"]
@@ -79,9 +79,12 @@ show_checkered = true
 top_level = true
 metadata/_edit_lock_ = true
 
-[node name="CarroVerde" parent="." instance=ExtResource("6_carro")]
+[node name="CarroVerde" parent="." unique_id=1787820202 instance=ExtResource("6_carro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1, -5)
 top_level = true
+gravity_scale = 1.0
+center_of_mass_mode = 0
+center_of_mass = Vector3(0, 0, 0)
 metadata/_edit_lock_ = true
 
 [node name="AK47Pickup" parent="." unique_id=1088073892 instance=ExtResource("2_ak47")]

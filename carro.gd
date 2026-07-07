@@ -1,6 +1,6 @@
 extends VehicleBody3D
 
-@export var max_engine_force = 1500.0
+@export var max_engine_force = 2000.0
 @export var max_steer = 0.8
 
 var driver = null

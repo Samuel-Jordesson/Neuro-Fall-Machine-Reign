@@ -11,6 +11,9 @@ radius = 3.0
 
 [node name="CarroVerde" type="VehicleBody3D"]
 mass = 1500.0
+gravity_scale = 3.0
+center_of_mass_mode = 1
+center_of_mass = Vector3(0, -0.8, 0)
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." instance=ExtResource("2_fbx")]
@@ -21,34 +24,46 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("BoxShape3D_car")
 
 [node name="WheelFrontLeft" type="VehicleWheel3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.4, -1.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.55, -1.5)
 use_as_traction = true
 use_as_steering = true
 wheel_radius = 0.4
-suspension_travel = 0.2
-suspension_stiffness = 40.0
+suspension_rest_length = 0.15
+suspension_travel = 0.4
+suspension_stiffness = 150.0
+suspension_max_force = 30000.0
+wheel_friction_slip = 10.5
 
 [node name="WheelFrontRight" type="VehicleWheel3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.4, -1.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.55, -1.5)
 use_as_traction = true
 use_as_steering = true
 wheel_radius = 0.4
-suspension_travel = 0.2
-suspension_stiffness = 40.0
+suspension_rest_length = 0.15
+suspension_travel = 0.4
+suspension_stiffness = 150.0
+suspension_max_force = 30000.0
+wheel_friction_slip = 10.5
 
 [node name="WheelBackLeft" type="VehicleWheel3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.4, 1.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.55, 1.5)
 use_as_traction = true
 wheel_radius = 0.4
-suspension_travel = 0.2
-suspension_stiffness = 40.0
+suspension_rest_length = 0.15
+suspension_travel = 0.4
+suspension_stiffness = 150.0
+suspension_max_force = 30000.0
+wheel_friction_slip = 10.5
 
 [node name="WheelBackRight" type="VehicleWheel3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.4, 1.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.55, 1.5)
 use_as_traction = true
 wheel_radius = 0.4
-suspension_travel = 0.2
-suspension_stiffness = 40.0
+suspension_rest_length = 0.15
+suspension_travel = 0.4
+suspension_stiffness = 150.0
+suspension_max_force = 30000.0
+wheel_friction_slip = 10.5
 
 [node name="CameraArm" type="Node3D" parent="."]
 
