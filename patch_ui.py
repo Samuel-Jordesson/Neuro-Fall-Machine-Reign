@@ -1,10 +1,13 @@
-[gd_scene load_steps=4 format=3 uid="uid://invui123"]
+import re
 
-[ext_resource type="Script" path="res://inventory_ui.gd" id="1_script"]
-[ext_resource type="Script" path="res://drop_zone.gd" id="2_drop"]
-[ext_resource type="Script" path="res://hotbar_slot.gd" id="3_slot"]
+with open("inventory_ui.tscn", "r") as f:
+    content = f.read()
 
+# Remove the old Hotbar node and its children
+content = re.sub(r'\[node name="Hotbar".*?(?=\[node|\Z)', '', content, flags=re.DOTALL)
 
+# Add StyleBoxes at the top
+sub_resources = """
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
 bg_color = Color(0.851, 0.851, 0.851, 0.48)
 border_width_left = 1
@@ -35,87 +38,27 @@ corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
+"""
 
-[node name="InventoryUI" type="CanvasLayer"]
-script = ExtResource("1_script")
+# Insert subresources before the first node
+parts = content.split('\n[node name="InventoryUI"')
+new_content = parts[0] + "\n" + sub_resources + '\n[node name="InventoryUI"' + parts[1]
 
-[node name="DropZone" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("2_drop")
-
-[node name="Panel" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -380.0
-grow_horizontal = 0
-grow_vertical = 2
-
-[node name="Background" type="ColorRect" parent="Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.2, 0.2, 0.2, 0.6)
-
-[node name="Border" type="ColorRect" parent="Panel"]
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-offset_right = 1.0
-grow_vertical = 2
-
-[node name="HeaderIcon" type="TextureRect" parent="Panel"]
-layout_mode = 0
-offset_left = 58.0
-offset_top = 49.0
-offset_right = 82.0
-offset_bottom = 73.0
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HeaderLabel" type="Label" parent="Panel"]
-layout_mode = 0
-offset_left = 91.0
-offset_top = 54.0
-offset_right = 159.0
-offset_bottom = 77.0
-theme_override_font_sizes/font_size = 12
-text = "Inventario"
-
-[node name="GridContainer" type="GridContainer" parent="Panel"]
-layout_mode = 0
-offset_left = 58.0
-offset_top = 93.0
-offset_right = 321.0
-offset_bottom = 431.0
-theme_override_constants/h_separation = 13
-theme_override_constants/v_separation = 13
-columns = 4
-
-
+# Define new Hotbar UI
+new_ui = """
 [node name="Hotbar" type="HBoxContainer" parent="."]
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -380.0
+offset_left = -360.0
 offset_top = -80.0
-offset_right = -59.0
+offset_right = -40.0
 offset_bottom = -24.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_constants/separation = 13
+theme_override_constants/separation = 7
 alignment = 2
 
 [node name="Slot1" type="Panel" parent="Hotbar"]
@@ -206,3 +149,10 @@ text = "I"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+"""
+
+new_content += "\n" + new_ui
+
+with open("inventory_ui.tscn", "w") as f:
+    f.write(new_content)
+print("Updated inventory_ui.tscn")

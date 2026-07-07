@@ -7,10 +7,16 @@ const ROTATION_SPEED = 10.0
 @onready var visual = $Visual
 var anim_player : AnimationPlayer
 
-var inventory = []
-var hotbar_items = ["", "", ""]
+var inventory = ["", "", "", "", "", "", "", "", "", "", "", ""]
+var hotbar_items = ["", "", "", ""]
 var active_slot = -1
 var is_armed = false
+
+var is_grappling = false
+var grapple_point = Vector3.ZERO
+var rope_length = 0.0
+var grapple_equipped = false
+var rope_mesh: MeshInstance3D = null
 
 @onready var pickup_radius = $PickupRadius
 @onready var prompt_label = $PromptLabel
@@ -36,7 +42,9 @@ func _ready():
 		"inventory": KEY_I,
 		"hotbar_1": KEY_1,
 		"hotbar_2": KEY_2,
-		"hotbar_3": KEY_3
+		"hotbar_3": KEY_3,
+		"hotbar_4": KEY_4,
+		"grapple_equip": KEY_Q
 	}
 	for action in inputs:
 		if not InputMap.has_action(action):
@@ -59,6 +67,7 @@ func _ready():
 	if has_node("InventoryUI"):
 		$InventoryUI.item_dropped.connect(_on_item_dropped)
 		$InventoryUI.hotbar_updated.connect(_on_hotbar_updated)
+		$InventoryUI.inventory_slot_swapped.connect(_on_inventory_slot_swapped)
 		
 	_setup_walk_particles()
 		
@@ -242,9 +251,22 @@ func _process(delta):
 	if Input.is_action_just_pressed("hotbar_1"): _toggle_slot(0)
 	if Input.is_action_just_pressed("hotbar_2"): _toggle_slot(1)
 	if Input.is_action_just_pressed("hotbar_3"): _toggle_slot(2)
+	if Input.is_action_just_pressed("hotbar_4"): _toggle_slot(3)
 	
-	if Input.is_action_just_pressed("shoot") and is_armed:
-		_shoot()
+	if Input.is_action_just_pressed("grapple_equip"):
+		grapple_equipped = !grapple_equipped
+		if is_grappling:
+			is_grappling = false
+			grapple_equipped = false
+			if rope_mesh:
+				rope_mesh.queue_free()
+				rope_mesh = null
+				
+	if Input.is_action_just_pressed("shoot"):
+		if grapple_equipped and not is_grappling:
+			_shoot_grapple()
+		elif is_armed:
+			_shoot()
 		
 	if is_armed and weapon_slot.get_child_count() > 0:
 		var w = weapon_slot.get_child(0)
@@ -289,15 +311,58 @@ func _toggle_slot(idx):
 			is_armed = true
 			_equip_item(item)
 
-func _on_hotbar_updated(slot_index, item_id):
-	hotbar_items[slot_index] = item_id
+func _on_hotbar_updated(slot_index, drag_data):
+	var source = drag_data["source"]
+	var item = drag_data["item"]
+	
+	if source == "inventory":
+		var inv_idx = drag_data["index"]
+		var temp = hotbar_items[slot_index]
+		hotbar_items[slot_index] = item
+		inventory[inv_idx] = temp
+	elif source == "hotbar":
+		var from_hotbar = drag_data["slot"]
+		var temp = hotbar_items[slot_index]
+		hotbar_items[slot_index] = item
+		hotbar_items[from_hotbar] = temp
+		
+	update_all_ui()
+
+func _on_inventory_slot_swapped(drag_data, to_slot):
+	var source = drag_data["source"]
+	var item = drag_data["item"]
+	
+	if source == "inventory":
+		var from_slot = drag_data["index"]
+		var temp = inventory[to_slot]
+		inventory[to_slot] = item
+		inventory[from_slot] = temp
+	elif source == "hotbar":
+		var from_hotbar = drag_data["slot"]
+		var temp = inventory[to_slot]
+		inventory[to_slot] = item
+		hotbar_items[from_hotbar] = temp
+		
+	update_all_ui()
+
+func update_all_ui():
+	if has_node("InventoryUI"):
+		$InventoryUI.update_inventory(inventory)
+		for i in range(hotbar_items.size()):
+			var hs = $InventoryUI.hotbar_slots[i]
+			hs.item_id = hotbar_items[i]
+			if hs.has_method("update_visuals"):
+				hs.update_visuals()
 
 func _pickup_item(item):
 	var item_id = item.get_item_id()
-	inventory.append(item_id)
-	if has_node("InventoryUI"):
-		$InventoryUI.update_inventory(inventory)
-	item.queue_free()
+	for i in range(inventory.size()):
+		if inventory[i] == "":
+			inventory[i] = item_id
+			if has_node("InventoryUI"):
+				$InventoryUI.update_inventory(inventory)
+			item.queue_free()
+			return
 
 func _equip_item(item_id):
 	for child in weapon_slot.get_children():
@@ -334,11 +399,41 @@ func _on_item_dropped(item_id):
 			_toggle_slot(active_slot) # unequip
 
 func _physics_process(delta):
+	if is_grappling:
+		var player_pos = global_position + Vector3(0, 1, 0)
+		var rope_vec = player_pos - grapple_point
+		var current_dist = rope_vec.length()
+		var rope_dir = rope_vec.normalized()
+		
+		if Input.is_action_pressed("ui_up"):
+			rope_length = max(2.0, rope_length - 10.0 * delta)
+		if Input.is_action_pressed("ui_down"):
+			rope_length += 10.0 * delta
+			
+		if current_dist > rope_length:
+			var target_pos = grapple_point + rope_dir * rope_length
+			var correction = target_pos - player_pos
+			global_position += correction
+			
+			var v_dot = velocity.dot(rope_dir)
+			if v_dot > 0:
+				velocity -= rope_dir * v_dot
+				
+		_update_rope_visual()
+		
+		if Input.is_action_just_pressed("grapple_equip"):
+			is_grappling = false
+			grapple_equipped = false
+			if rope_mesh:
+				rope_mesh.queue_free()
+				rope_mesh = null
+				
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
 		
 	current_aim_target = Vector3.ZERO
-	if is_armed:
+	var is_aiming = is_armed or grapple_equipped
+	if is_aiming:
 		var camera = get_viewport().get_camera_3d()
 		if camera:
 			var mouse_pos = get_viewport().get_mouse_position()
@@ -368,24 +463,38 @@ func _physics_process(delta):
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
-	if direction.length() > 0:
-		velocity.x = move_toward(velocity.x, direction.x * SPEED, ACCELERATION * delta)
-		velocity.z = move_toward(velocity.z, direction.z * SPEED, ACCELERATION * delta)
-		
-		if not is_armed:
+	var is_swinging = is_grappling and not is_on_floor()
+	
+	if is_swinging:
+		if direction.length() > 0:
+			velocity += direction * 20.0 * delta
+			
+		if not is_aiming and direction.length() > 0:
 			var target_rotation = atan2(direction.x, direction.z)
 			visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
-		
-		var run_anim = "ArmedRun" if is_armed else "Run"
+			
+		var run_anim = "ArmedRun" if is_aiming else "Run"
 		if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
 			anim_player.play(run_anim, 0.2)
 	else:
-		velocity.x = move_toward(velocity.x, 0, ACCELERATION * delta)
-		velocity.z = move_toward(velocity.z, 0, ACCELERATION * delta)
-		
-		var idle_anim = "ArmedIdle" if is_armed else "Idle"
-		if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
-			anim_player.play(idle_anim, 0.2)
+		if direction.length() > 0:
+			velocity.x = move_toward(velocity.x, direction.x * SPEED, ACCELERATION * delta)
+			velocity.z = move_toward(velocity.z, direction.z * SPEED, ACCELERATION * delta)
+			
+			if not is_aiming:
+				var target_rotation = atan2(direction.x, direction.z)
+				visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
+			
+			var run_anim = "ArmedRun" if is_aiming else "Run"
+			if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
+				anim_player.play(run_anim, 0.2)
+		else:
+			velocity.x = move_toward(velocity.x, 0, ACCELERATION * delta)
+			velocity.z = move_toward(velocity.z, 0, ACCELERATION * delta)
+			
+			var idle_anim = "ArmedIdle" if is_aiming else "Idle"
+			if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
+				anim_player.play(idle_anim, 0.2)
 			
 	if walk_particles:
 		var is_walking = velocity.length() > 0.5 and is_on_floor()
@@ -405,3 +514,45 @@ func exit_vehicle(pos: Vector3):
 	process_mode = Node.PROCESS_MODE_INHERIT
 	show()
 	$CameraArm/Camera3D.current = true
+
+func _shoot_grapple():
+	var space_state = get_world_3d().direct_space_state
+	var camera = get_viewport().get_camera_3d()
+	var mouse_pos = get_viewport().get_mouse_position()
+	var origin = camera.project_ray_origin(mouse_pos)
+	var end = origin + camera.project_ray_normal(mouse_pos) * 100.0
+	
+	var query = PhysicsRayQueryParameters3D.create(origin, end)
+	var result = space_state.intersect_ray(query)
+	
+	if result and result.collider and result.collider.is_in_group("grapple_point"):
+		grapple_point = result.position
+		var player_pos = global_position + Vector3(0, 1, 0)
+		rope_length = player_pos.distance_to(grapple_point)
+		is_grappling = true
+		
+		rope_mesh = MeshInstance3D.new()
+		var cyl = CylinderMesh.new()
+		cyl.top_radius = 0.05
+		cyl.bottom_radius = 0.05
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.2, 0.2, 0.2)
+		cyl.material = mat
+		rope_mesh.mesh = cyl
+		get_tree().root.add_child(rope_mesh)
+
+func _update_rope_visual():
+	if not rope_mesh: return
+	var player_pos = global_position + Vector3(0, 1, 0)
+	var mid_point = (player_pos + grapple_point) / 2.0
+	var rope_vec = grapple_point - player_pos
+	var dist = rope_vec.length()
+	
+	rope_mesh.global_position = mid_point
+	rope_mesh.mesh.height = dist
+	
+	var up = Vector3.UP
+	if abs(rope_vec.normalized().y) > 0.99:
+		up = Vector3.RIGHT
+	rope_mesh.look_at_from_position(mid_point, grapple_point, up)
+	rope_mesh.rotation_degrees.x -= 90
