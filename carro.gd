@@ -1,6 +1,6 @@
 extends VehicleBody3D
 
-@export var max_engine_force = 2000.0
+@export var max_engine_force = 8000.0
 @export var max_steer = 0.8
 
 var driver = null
@@ -31,7 +31,7 @@ func interact(player):
 func _physics_process(delta):
 	if driver != null:
 		var steering_input = Input.get_axis("move_right", "move_left")
-		steering = move_toward(steering, steering_input * max_steer, delta * 2.5)
+		steering = move_toward(steering, steering_input * max_steer, delta * 5.0)
 		
 		var accel_input = Input.get_axis("move_down", "move_up")
 		# Inverted so W goes forward

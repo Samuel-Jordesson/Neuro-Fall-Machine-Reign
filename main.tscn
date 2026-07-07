@@ -2,7 +2,6 @@
 
 [ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dbx52e4w1l" path="res://ak47_pickup.tscn" id="2_ak47"]
-[ext_resource type="PackedScene" uid="uid://btg70iu5bhxfv" path="res://arvores/grama/low_poly_cartoon_grass.glb" id="2_lquwl"]
 [ext_resource type="PackedScene" uid="uid://da4ehhxjl7b4s" path="res://rua/poste/post.glb" id="3_h2yge"]
 [ext_resource type="PackedScene" uid="uid://bn2vwp3lw25lk" path="res://rua/modelo/curva-b.glb" id="5_lquwl"]
 [ext_resource type="PackedScene" path="res://carro.tscn" id="6_carro"]
@@ -49,13 +48,23 @@ _shader_parameters = {
 }
 show_checkered = true
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lquwl"]
+transparency = 4
+cull_mode = 2
+vertex_color_use_as_albedo = true
+backlight_enabled = true
+backlight = Color(0.5, 0.5, 0.5, 1)
+distance_fade_mode = 1
+distance_fade_min_distance = 128.0
+distance_fade_max_distance = 96.0
+
 [sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_7mycd"]
-name = "low_poly_cartoon_grass"
-scene_file = ExtResource("2_lquwl")
-density = 0.01
-last_lod = 1
-last_shadow_lod = 1
-lod1_range = 128.0
+generated_type = 1
+height_offset = 0.5
+material_override = SubResource("StandardMaterial3D_lquwl")
+last_lod = 0
+last_shadow_lod = 0
+lod0_range = 128.0
 
 [sub_resource type="Terrain3DAssets" id="Terrain3DAssets_272bh"]
 mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_7mycd")])

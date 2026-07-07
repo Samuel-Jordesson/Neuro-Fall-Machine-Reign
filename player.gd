@@ -23,6 +23,8 @@ var is_armed = false
 
 var interactable_target = null
 var current_vehicle = null
+var current_aim_target = Vector3.ZERO
+var walk_particles: GPUParticles3D
 
 func _ready():
 	var inputs = {
@@ -58,6 +60,8 @@ func _ready():
 		$InventoryUI.item_dropped.connect(_on_item_dropped)
 		$InventoryUI.hotbar_updated.connect(_on_hotbar_updated)
 		
+	_setup_walk_particles()
+		
 	call_deferred("_setup_bone_attachment")
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -66,6 +70,47 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 		var skel = _find_skeleton(c)
 		if skel: return skel
 	return null
+
+func _setup_walk_particles():
+	walk_particles = GPUParticles3D.new()
+	walk_particles.emitting = false
+	walk_particles.amount = 15
+	walk_particles.lifetime = 0.5
+	walk_particles.one_shot = false
+	
+	var mat = ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.3
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 40.0
+	mat.initial_velocity_min = 0.2
+	mat.initial_velocity_max = 0.8
+	mat.gravity = Vector3(0, 0.5, 0)
+	mat.scale_min = 0.1
+	mat.scale_max = 0.3
+	
+	var grad = Gradient.new()
+	grad.add_point(0.0, Color(0.8, 0.8, 0.8, 0.6))
+	grad.add_point(1.0, Color(0.8, 0.8, 0.8, 0.0))
+	var grad_tex = GradientTexture1D.new()
+	grad_tex.gradient = grad
+	mat.color_ramp = grad_tex
+	
+	walk_particles.process_material = mat
+	
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	var pmat = StandardMaterial3D.new()
+	pmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pmat.vertex_color_use_as_albedo = true
+	pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sphere.material = pmat
+	
+	walk_particles.draw_pass_1 = sphere
+	
+	add_child(walk_particles)
+	walk_particles.position = Vector3(0, 0.1, 0)
 
 func _setup_bone_attachment():
 	var skeleton = _find_skeleton(visual)
@@ -213,31 +258,23 @@ func _shoot():
 	if is_armed and weapon_slot.get_child_count() > 0:
 		start_pos = weapon_slot.get_child(0).global_position
 		
-	var end_pos = (global_position + Vector3(0, 1.2, 0)) + (visual.transform.basis * Vector3(0, 0, 50))
-	
-	if shoot_ray and shoot_ray.is_colliding():
-		var hit_obj = shoot_ray.get_collider()
-		print("Acertou: ", hit_obj.name)
-		end_pos = shoot_ray.get_collision_point()
+	var end_pos = current_aim_target
+	if end_pos == Vector3.ZERO:
+		end_pos = (global_position + Vector3(0, 1.2, 0)) + (visual.transform.basis * Vector3(0, 0, 50))
+		if shoot_ray and shoot_ray.is_colliding():
+			end_pos = shoot_ray.get_collision_point()
 		
-	var tracer = MeshInstance3D.new()
-	var cylinder = CylinderMesh.new()
-	cylinder.top_radius = 0.02
-	cylinder.bottom_radius = 0.02
-	cylinder.height = start_pos.distance_to(end_pos)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(1, 1, 0)
-	mat.emission_enabled = true
-	mat.emission = Color(1, 1, 0)
-	cylinder.material = mat
-	tracer.mesh = cylinder
+	var bullet_script = preload("res://bullet.gd")
+	var bullet = bullet_script.new()
 	
-	get_tree().root.add_child(tracer)
-	tracer.global_position = (start_pos + end_pos) / 2.0
-	tracer.look_at_from_position(tracer.global_position, end_pos, Vector3.UP)
-	tracer.rotate_object_local(Vector3.RIGHT, PI/2)
+	# Adiciona o projétil à cena raiz
+	get_tree().root.add_child(bullet)
 	
-	get_tree().create_timer(0.05).timeout.connect(tracer.queue_free)
+	# Define a posição e direção
+	bullet.global_position = start_pos
+	bullet.direction = (end_pos - start_pos).normalized()
+	
+	# Opcional: Efeito sonoro, recuo, etc, podem entrar aqui
 
 func _toggle_slot(idx):
 	if active_slot == idx:
@@ -300,6 +337,34 @@ func _physics_process(delta):
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
 		
+	current_aim_target = Vector3.ZERO
+	if is_armed:
+		var camera = get_viewport().get_camera_3d()
+		if camera:
+			var mouse_pos = get_viewport().get_mouse_position()
+			var ray_origin = camera.project_ray_origin(mouse_pos)
+			var ray_dir = camera.project_ray_normal(mouse_pos)
+			
+			var space_state = get_world_3d().direct_space_state
+			var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 1000)
+			query.exclude = [self.get_rid()]
+			
+			var result = space_state.intersect_ray(query)
+			if result:
+				current_aim_target = result.position
+			else:
+				var plane = Plane(Vector3.UP, global_position.y)
+				var intersection = plane.intersects_ray(ray_origin, ray_dir)
+				if intersection != null:
+					current_aim_target = intersection
+					
+			if current_aim_target != Vector3.ZERO:
+				var look_dir = current_aim_target - global_position
+				look_dir.y = 0
+				if look_dir.length_squared() > 0.001:
+					var target_rotation = atan2(look_dir.x, look_dir.z)
+					visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * 1.5 * delta)
+					
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
@@ -307,8 +372,9 @@ func _physics_process(delta):
 		velocity.x = move_toward(velocity.x, direction.x * SPEED, ACCELERATION * delta)
 		velocity.z = move_toward(velocity.z, direction.z * SPEED, ACCELERATION * delta)
 		
-		var target_rotation = atan2(direction.x, direction.z)
-		visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
+		if not is_armed:
+			var target_rotation = atan2(direction.x, direction.z)
+			visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
 		
 		var run_anim = "ArmedRun" if is_armed else "Run"
 		if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
@@ -320,6 +386,10 @@ func _physics_process(delta):
 		var idle_anim = "ArmedIdle" if is_armed else "Idle"
 		if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
 			anim_player.play(idle_anim, 0.2)
+			
+	if walk_particles:
+		var is_walking = velocity.length() > 0.5 and is_on_floor()
+		walk_particles.emitting = is_walking
 			
 	move_and_slide()
 
