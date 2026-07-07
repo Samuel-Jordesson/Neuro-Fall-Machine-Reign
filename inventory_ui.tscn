@@ -1,0 +1,71 @@
+[gd_scene load_steps=4 format=3 uid="uid://invui123"]
+
+[ext_resource type="Script" path="res://inventory_ui.gd" id="1_script"]
+[ext_resource type="Script" path="res://drop_zone.gd" id="2_drop"]
+[ext_resource type="Script" path="res://hotbar_slot.gd" id="3_slot"]
+
+[node name="InventoryUI" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="DropZone" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_drop")
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -250.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer"]
+layout_mode = 2
+text = "Inventory"
+horizontal_alignment = 1
+
+[node name="ItemList" type="VBoxContainer" parent="Panel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Hotbar" type="HBoxContainer" parent="."]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -110.0
+offset_top = -80.0
+offset_right = 110.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Slot1" type="ColorRect" parent="Hotbar"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+color = Color(0.12, 0.12, 0.12, 0.8)
+script = ExtResource("3_slot")
+
+[node name="Slot2" type="ColorRect" parent="Hotbar"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+color = Color(0.12, 0.12, 0.12, 0.8)
+script = ExtResource("3_slot")
+
+[node name="Slot3" type="ColorRect" parent="Hotbar"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+color = Color(0.12, 0.12, 0.12, 0.8)
+script = ExtResource("3_slot")

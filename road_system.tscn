@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://bx9roadsys002"]
+
+[ext_resource type="Script" path="res://road_generator.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://rua/rua.glb" id="2_rua"]
+
+[sub_resource type="Curve3D" id="Curve3D_base"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -10),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="RoadSystem" type="Path3D"]
+curve = SubResource("Curve3D_base")
+script = ExtResource("1_script")
+road_scene = ExtResource("2_rua")
+mesh_length_override = 0.0
+forward_axis = 2
+rebuild = false

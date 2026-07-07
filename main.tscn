@@ -1,0 +1,104 @@
+[gd_scene format=3 uid="uid://duu6o8ohnerm0"]
+
+[ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dbx52e4w1l" path="res://ak47_pickup.tscn" id="2_ak47"]
+[ext_resource type="PackedScene" uid="uid://btg70iu5bhxfv" path="res://arvores/grama/low_poly_cartoon_grass.glb" id="2_lquwl"]
+[ext_resource type="PackedScene" uid="uid://da4ehhxjl7b4s" path="res://rua/poste/post.glb" id="3_h2yge"]
+[ext_resource type="PackedScene" uid="uid://bn2vwp3lw25lk" path="res://rua/modelo/curva-b.glb" id="5_lquwl"]
+[ext_resource type="PackedScene" path="res://carro.tscn" id="6_carro"]
+
+[sub_resource type="Gradient" id="Gradient_ig7tw"]
+offsets = PackedFloat32Array(0.2, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0, 0, 0, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_0xm2m"]
+noise_type = 2
+frequency = 0.03
+cellular_jitter = 3.0
+cellular_return_type = 0
+domain_warp_enabled = true
+domain_warp_type = 1
+domain_warp_amplitude = 50.0
+domain_warp_fractal_type = 2
+domain_warp_fractal_lacunarity = 1.5
+domain_warp_fractal_gain = 1.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_h2yge"]
+noise = SubResource("FastNoiseLite_0xm2m")
+color_ramp = SubResource("Gradient_ig7tw")
+seamless = true
+
+[sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_1bvp3"]
+_shader_parameters = {
+&"bias_distance": null,
+&"blend_sharpness": null,
+&"depth_blur": null,
+&"enable_macro_variation": null,
+&"enable_projection": null,
+&"flat_terrain_normals": null,
+&"macro_variation1": null,
+&"macro_variation2": null,
+&"macro_variation_slope": null,
+&"mipmap_bias": null,
+&"noise1_angle": null,
+&"noise1_offset": null,
+&"noise1_scale": null,
+&"noise2_scale": null,
+&"noise_texture": SubResource("NoiseTexture2D_h2yge"),
+&"projection_threshold": null
+}
+show_checkered = true
+
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_7mycd"]
+name = "low_poly_cartoon_grass"
+scene_file = ExtResource("2_lquwl")
+density = 0.01
+last_lod = 1
+last_shadow_lod = 1
+lod1_range = 128.0
+
+[sub_resource type="Terrain3DAssets" id="Terrain3DAssets_272bh"]
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_7mycd")])
+
+[node name="Main" type="Node3D" unique_id=1842100766]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2143795018]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Player" parent="." unique_id=143137849 instance=ExtResource("1_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6203041, 0)
+rot_arma = Vector3(0, 0, -76.625)
+
+[node name="Terrain3D" type="Terrain3D" parent="." unique_id=502617404]
+data_directory = "res://terreno"
+material = SubResource("Terrain3DMaterial_1bvp3")
+assets = SubResource("Terrain3DAssets_272bh")
+collision_mode = 3
+show_checkered = true
+top_level = true
+metadata/_edit_lock_ = true
+
+[node name="CarroVerde" parent="." instance=ExtResource("6_carro")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1, -5)
+top_level = true
+metadata/_edit_lock_ = true
+
+[node name="AK47Pickup" parent="." unique_id=1088073892 instance=ExtResource("2_ak47")]
+transform = Transform3D(1, 0, 0, 0, -0.00728617, 0.9999735, 0, -0.9999735, -0.00728617, 3, 0, 0)
+
+[node name="post" parent="." unique_id=1737351432 instance=ExtResource("3_h2yge")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -7.4300647, 0, 6.784)
+
+[node name="SpotLight3D" type="SpotLight3D" parent="post" unique_id=1724821985]
+transform = Transform3D(0.83333325, 0, 0, 0, -3.6426158e-08, 0.83333325, 0, -0.83333325, -3.6426158e-08, -6.4088078, 2.796152, -0.7459464)
+light_color = Color(0.96862745, 0.78039217, 0.12156863, 1)
+light_energy = 7.683
+light_indirect_energy = 6.715
+light_volumetric_fog_energy = 3.349
+spot_range = 4.2962
+spot_attenuation = 0.13
+spot_angle = 31.291653
+
+[node name="curva-b" parent="." unique_id=2112191739 instance=ExtResource("5_lquwl")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.745653, 0, 4.9795647)

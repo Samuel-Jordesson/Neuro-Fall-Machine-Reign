@@ -1,0 +1,49 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://player.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://flavio/Breathing Idle.fbx" id="2_visual"]
+[ext_resource type="PackedScene" uid="uid://invui123" path="res://inventory_ui.tscn" id="3_invui"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_pickup"]
+radius = 2.0
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Visual" parent="." instance=ExtResource("2_visual")]
+
+[node name="WeaponSlot" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 1.2, -0.4)
+
+[node name="ShootRay" type="RayCast3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+target_position = Vector3(0, 0, 50)
+collision_mask = 3
+
+[node name="CameraArm" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraArm"]
+transform = Transform3D(1, 0, 0, 0, 0.79335, 0.60876, 0, -0.60876, 0.79335, 0, 4.87, 6.34)
+current = true
+
+[node name="PickupRadius" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PickupRadius"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("SphereShape3D_pickup")
+
+[node name="PromptLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+visible = false
+billboard = 1
+text = "Press E to pick up"
+
+[node name="InventoryUI" parent="." instance=ExtResource("3_invui")]

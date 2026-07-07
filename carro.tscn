@@ -1,0 +1,64 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://carro.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://carros/carro-verde/carro.fbx" id="2_fbx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_car"]
+size = Vector3(2.0, 1.2, 4.5)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 3.0
+
+[node name="CarroVerde" type="VehicleBody3D"]
+mass = 1500.0
+script = ExtResource("1_script")
+
+[node name="Visual" parent="." instance=ExtResource("2_fbx")]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BoxShape3D_car")
+
+[node name="WheelFrontLeft" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.4, -1.5)
+use_as_traction = true
+use_as_steering = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="WheelFrontRight" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.4, -1.5)
+use_as_traction = true
+use_as_steering = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="WheelBackLeft" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.4, 1.5)
+use_as_traction = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="WheelBackRight" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.4, 1.5)
+use_as_traction = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="CameraArm" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraArm"]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 4.0, 6.0)
+
+[node name="InteractArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("SphereShape3D_interact")
