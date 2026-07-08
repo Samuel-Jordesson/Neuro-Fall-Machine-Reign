@@ -13,6 +13,7 @@ var backpack_node: Node3D = null
 var hotbar_items = ["", "", "", ""]
 var active_slot = -1
 var is_armed = false
+var is_punching = false
 
 var is_grappling = false
 var grapple_point = Vector3.ZERO
@@ -201,6 +202,9 @@ func setup_animations():
 		print("No AnimationPlayer found in visual!")
 		return
 		
+	if not anim_player.animation_finished.is_connected(_on_animation_finished):
+		anim_player.animation_finished.connect(_on_animation_finished)
+		
 	var idle_anim = get_first_animation(anim_player)
 	if idle_anim:
 		idle_anim = idle_anim.duplicate()
@@ -248,6 +252,18 @@ func setup_animations():
 				anim.loop_mode = Animation.LOOP_NONE
 				add_animation_to_player(anim_player, "Jump", anim)
 		jump_scene.queue_free()
+		
+	var punch_scene_res = load("res://flavio/soco.fbx")
+	if punch_scene_res:
+		var punch_scene = punch_scene_res.instantiate()
+		var punch_ap = _find_ap(punch_scene)
+		if punch_ap:
+			var anim = get_first_animation(punch_ap)
+			if anim:
+				anim = anim.duplicate()
+				anim.loop_mode = Animation.LOOP_NONE
+				add_animation_to_player(anim_player, "Punch", anim)
+		punch_scene.queue_free()
 	
 	if anim_player.has_animation("Idle"):
 		anim_player.play("Idle")
@@ -323,7 +339,7 @@ func _process(delta):
 				rope_mesh = null
 				
 	var target_grapple_point = null
-	if grapple_equipped and not is_grappling:
+	if not is_grappling:
 		var closest_dist = 20.0
 		var nodes = get_tree().get_nodes_in_group("grapple_point")
 		for node in nodes:
@@ -340,8 +356,11 @@ func _process(delta):
 			if Input.is_action_just_pressed("grapple_action"):
 				_shoot_grapple(target_grapple_point.global_position)
 				
-	if Input.is_action_just_pressed("shoot") and is_armed:
-		_shoot()
+	if Input.is_action_just_pressed("shoot"):
+		if is_armed:
+			_shoot()
+		else:
+			_punch()
 		
 	if is_armed and weapon_slot.get_child_count() > 0:
 		var w = weapon_slot.get_child(0)
@@ -368,7 +387,20 @@ func _shoot():
 	bullet.global_position = start_pos
 	bullet.direction = (end_pos - start_pos).normalized()
 	
-	# Opcional: Efeito sonoro, recuo, etc, podem entrar aqui
+func _punch():
+	print("Tentando dar soco. is_punching: ", is_punching, " on floor: ", is_on_floor())
+	if is_punching or not is_on_floor(): return
+	is_punching = true
+	if anim_player and anim_player.has_animation("Punch"):
+		print("Iniciando animacao de Punch")
+		anim_player.play("Punch", 0.1)
+	else:
+		print("ERRO: animacao Punch não encontrada!")
+
+func _on_animation_finished(anim_name: String):
+	if anim_name == "Punch":
+		print("Animacao Punch finalizada!")
+		is_punching = false
 
 func _toggle_slot(idx):
 	if active_slot == idx:
@@ -586,6 +618,9 @@ func _physics_process(delta):
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
+	if is_punching and is_on_floor():
+		direction = Vector3.ZERO
+	
 	var is_swinging = is_grappling and not is_on_floor()
 	if is_swinging:
 		var pump_dir = Vector3(input_dir.x, 0, input_dir.y)
@@ -631,7 +666,9 @@ func _physics_process(delta):
 			if anim_player and anim_player.has_animation("Jump") and anim_player.assigned_animation != "Jump":
 				anim_player.play("Jump", 0.1)
 		else:
-			if direction.length() > 0:
+			if is_punching:
+				pass
+			elif direction.length() > 0:
 				var run_anim = "ArmedRun" if use_armed_anim else "Run"
 				if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
 					anim_player.play(run_anim, 0.2)

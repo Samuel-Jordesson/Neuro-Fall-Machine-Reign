@@ -1,12 +1,12 @@
 [gd_scene format=3 uid="uid://d2umveryi4yc6"]
 
 [ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://d02dk0840eg1e" path="res://arvores/grama2/grama.glb" id="2_272bh"]
 [ext_resource type="PackedScene" uid="uid://dbx52e4w1l" path="res://ak47_pickup.tscn" id="2_ak47"]
 [ext_resource type="PackedScene" uid="uid://da4ehhxjl7b4s" path="res://rua/poste/post.glb" id="3_h2yge"]
-[ext_resource type="PackedScene" uid="uid://bn2vwp3lw25lk" path="res://rua/modelo/curva-b.glb" id="5_lquwl"]
-[ext_resource type="PackedScene" uid="uid://wvbf751a4ti1" path="res://arvores/arvore1/jabami_anime_bush_v1.glb" id="6_5vw27"]
 [ext_resource type="PackedScene" uid="uid://dfpfg73ftjehu" path="res://carro.tscn" id="6_carro"]
-[ext_resource type="PackedScene" uid="uid://ckysm76ett3kv" path="res://arvores/arvore2/jabami_anime_tree_v4.glb" id="7_kek77"]
+[ext_resource type="PackedScene" uid="uid://b34ta2vhw05h" path="res://rua/rua-nova.glb" id="8_5vw27"]
+[ext_resource type="PackedScene" uid="uid://water1234567" path="res://water.tscn" id="8_water"]
 [ext_resource type="PackedScene" uid="uid://c8x52e4w12" path="res://mochila_pickup.tscn" id="mochila_pickup"]
 
 [sub_resource type="Gradient" id="Gradient_ig7tw"]
@@ -51,20 +51,10 @@ _shader_parameters = {
 }
 show_checkered = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lquwl"]
-transparency = 4
-cull_mode = 2
-vertex_color_use_as_albedo = true
-backlight_enabled = true
-backlight = Color(0.5, 0.5, 0.5, 1)
-distance_fade_mode = 1
-distance_fade_min_distance = 128.0
-distance_fade_max_distance = 96.0
-
 [sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_7mycd"]
-generated_type = 1
-height_offset = 0.5
-material_override = SubResource("StandardMaterial3D_lquwl")
+name = "grama"
+scene_file = ExtResource("2_272bh")
+density = 9.763555
 last_lod = 0
 last_shadow_lod = 0
 lod0_range = 128.0
@@ -120,11 +110,8 @@ spot_range = 4.2962
 spot_attenuation = 0.13
 spot_angle = 31.291653
 
-[node name="curva-b" parent="." unique_id=2112191739 instance=ExtResource("5_lquwl")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.745653, 0, 4.9795647)
-
 [node name="GrapplePoint" type="StaticBody3D" parent="." unique_id=444929787 groups=["grapple_point"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.227849, -10)
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 4.227849, -10)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="GrapplePoint" unique_id=1002603453]
 shape = SubResource("BoxShape3D_grapple")
@@ -132,14 +119,14 @@ shape = SubResource("BoxShape3D_grapple")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="GrapplePoint" unique_id=212502645]
 mesh = SubResource("BoxMesh_grapple")
 
-[node name="Sketchfab_Scene" parent="." unique_id=1729296717 instance=ExtResource("6_5vw27")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.0921803, 0, 5.2316113)
-
-[node name="Sketchfab_Scene2" parent="." unique_id=432124421 instance=ExtResource("7_kek77")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.560282, 0, -0.7337618)
-
 [node name="CarroVerde2" parent="." unique_id=157677296 instance=ExtResource("6_carro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.404955, 0, 2.2859244)
 
 [node name="MochilaPickup" parent="." unique_id=987654321 instance=ExtResource("mochila_pickup")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
+
+[node name="Water" parent="." unique_id=999999999 instance=ExtResource("8_water")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.29927, -0.7027664, -16.069492)
+
+[node name="rua-nova" parent="." unique_id=381330312 instance=ExtResource("8_5vw27")]
+transform = Transform3D(1.925, 0, 0, 0, 1.925, 0, 0, 0, 1.925, -17.023872, 4.7683716e-07, 7.4181604)

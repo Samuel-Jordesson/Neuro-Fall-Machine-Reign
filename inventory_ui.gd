@@ -151,6 +151,17 @@ func update_inventory(inventory: Array, backpack_item: String):
 				icon.offset_right = -5
 				icon.offset_bottom = -5
 				inventory_slots_ui[i].add_child(icon)
+			elif inventory[i].begins_with("mochila") or inventory[i] == "mochila.fbx":
+				var icon = TextureRect.new()
+				icon.texture = preload("res://mochilas/img-mochila1.png")
+				icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+				icon.offset_left = 5
+				icon.offset_top = 5
+				icon.offset_right = -5
+				icon.offset_bottom = -5
+				inventory_slots_ui[i].add_child(icon)
 			elif inventory[i] != "":
 				var label = Label.new()
 				label.text = inventory[i]
@@ -166,12 +177,25 @@ func update_inventory(inventory: Array, backpack_item: String):
 		
 	backpack_slot_ui.item_id = backpack_item
 	if backpack_item != "":
-		var label = Label.new()
-		label.text = backpack_item
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		backpack_slot_ui.add_child(label)
+		if backpack_item.begins_with("mochila") or backpack_item == "mochila.fbx":
+			var icon = TextureRect.new()
+			icon.texture = preload("res://mochilas/img-mochila1.png")
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+			icon.offset_left = 5
+			icon.offset_top = 5
+			icon.offset_right = -5
+			icon.offset_bottom = -5
+			backpack_slot_ui.add_child(icon)
+		else:
+			var label = Label.new()
+			label.text = backpack_item
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			label.set_anchors_preset(Control.PRESET_FULL_RECT)
+			backpack_slot_ui.add_child(label)
+			
 		extra_panel_node.show()
 	else:
 		extra_panel_node.hide()
@@ -194,6 +218,13 @@ class InventorySlot extends ColorRect:
 		if item_id == "ak47":
 			var icon = TextureRect.new()
 			icon.texture = preload("res://ak47/ak47im.png")
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+			preview.add_child(icon)
+		elif item_id.begins_with("mochila") or item_id == "mochila.fbx":
+			var icon = TextureRect.new()
+			icon.texture = preload("res://mochilas/img-mochila1.png")
 			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			icon.set_anchors_preset(Control.PRESET_FULL_RECT)

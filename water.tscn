@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://water1234567"]
+
+[ext_resource type="Shader" path="res://water.gdshader" id="1_water"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_wave1"]
+noise_type = 3
+frequency = 0.015
+fractal_type = 2
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_wave1"]
+seamless = true
+noise = SubResource("FastNoiseLite_wave1")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_wave2"]
+noise_type = 3
+seed = 123
+frequency = 0.02
+fractal_type = 2
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_wave2"]
+seamless = true
+noise = SubResource("FastNoiseLite_wave2")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_normal"]
+noise_type = 3
+frequency = 0.05
+fractal_type = 2
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_normal"]
+seamless = true
+as_normal_map = true
+bump_strength = 2.0
+noise = SubResource("FastNoiseLite_normal")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+render_priority = 0
+shader = ExtResource("1_water")
+shader_parameter/albedo = Color(0, 0.32, 0.43, 1)
+shader_parameter/albedo2 = Color(0, 0.45, 0.55, 1)
+shader_parameter/foam_color = Color(1, 1, 1, 1)
+shader_parameter/metallic = 0.0
+shader_parameter/roughness = 0.02
+shader_parameter/wave_dir = Vector2(1, 0.5)
+shader_parameter/wave_dir2 = Vector2(-0.5, 1)
+shader_parameter/time_scale = 0.03
+shader_parameter/wave_scale = 0.2
+shader_parameter/wave_height = 0.3
+shader_parameter/edge_scale = 0.8
+shader_parameter/wave = SubResource("NoiseTexture2D_wave1")
+shader_parameter/wave2 = SubResource("NoiseTexture2D_wave2")
+shader_parameter/normalmap = SubResource("NoiseTexture2D_normal")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
+material = SubResource("ShaderMaterial_water")
+size = Vector2(100, 100)
+subdivide_width = 100
+subdivide_depth = 100
+
+[node name="Water" type="MeshInstance3D"]
+mesh = SubResource("PlaneMesh_water")
