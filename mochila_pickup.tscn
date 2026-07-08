@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://c8x52e4w12"]
+
+[ext_resource type="Script" path="res://interactable.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://mochilas/mochila.fbx" id="2_visual"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
+size = Vector3(2, 2, 2)
+
+[node name="MochilaPickup" type="Node3D" groups=["interactable"]]
+script = ExtResource("1_script")
+item_id = "mochila"
+display_name = "Mochila"
+
+[node name="Visual" parent="." instance=ExtResource("2_visual")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="InteractArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+shape = SubResource("BoxShape3D_interact")

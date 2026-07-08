@@ -7,7 +7,9 @@ const ROTATION_SPEED = 10.0
 @onready var visual = $Visual
 var anim_player : AnimationPlayer
 
-var inventory = ["", "", "", "", "", "", "", "", "", "", "", ""]
+var inventory = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+var backpack_item = ""
+var backpack_node: Node3D = null
 var hotbar_items = ["", "", "", ""]
 var active_slot = -1
 var is_armed = false
@@ -23,9 +25,33 @@ var rope_mesh: MeshInstance3D = null
 @onready var weapon_slot = $Visual/WeaponSlot
 @onready var shoot_ray = $Visual/ShootRay
 
+var my_skeleton: Skeleton3D = null
+var arm_bone_names: Array[StringName] = []
+var was_on_floor: bool = true
+
 @export_group("Configuração da Arma (Na Mão)")
 @export var pos_arma: Vector3 = Vector3(0, 0, 0)
 @export var rot_arma: Vector3 = Vector3(0, 0, 0)
+@export var scale_arma: Vector3 = Vector3(1, 1, 1)
+
+@export_group("Configuração da Mochila (Costas)")
+@export var pos_mochila: Vector3 = Vector3(0, 0, -0.2):
+	set(value):
+		pos_mochila = value
+		if backpack_node and backpack_node.get_child_count() > 0:
+			backpack_node.get_child(0).position = value
+
+@export var rot_mochila: Vector3 = Vector3(0, 180, 0):
+	set(value):
+		rot_mochila = value
+		if backpack_node and backpack_node.get_child_count() > 0:
+			backpack_node.get_child(0).rotation_degrees = value
+
+@export var scale_mochila: Vector3 = Vector3(1, 1, 1):
+	set(value):
+		scale_mochila = value
+		if backpack_node and backpack_node.get_child_count() > 0:
+			backpack_node.get_child(0).scale = value
 
 var interactable_target = null
 var current_vehicle = null
@@ -44,7 +70,8 @@ func _ready():
 		"hotbar_2": KEY_2,
 		"hotbar_3": KEY_3,
 		"hotbar_4": KEY_4,
-		"grapple_equip": KEY_Q
+		"grapple_equip": KEY_Q,
+		"grapple_action": KEY_K
 	}
 	for action in inputs:
 		if not InputMap.has_action(action):
@@ -122,23 +149,44 @@ func _setup_walk_particles():
 	walk_particles.position = Vector3(0, 0.1, 0)
 
 func _setup_bone_attachment():
-	var skeleton = _find_skeleton(visual)
-	if skeleton:
+	my_skeleton = _find_skeleton(visual)
+	if my_skeleton:
+		for i in range(my_skeleton.get_bone_count()):
+			var b_name = my_skeleton.get_bone_name(i).to_lower()
+			if "arm" in b_name or "hand" in b_name or "shoulder" in b_name:
+				arm_bone_names.append(my_skeleton.get_bone_name(i))
+				
 		var hand_bone_name = ""
-		for i in range(skeleton.get_bone_count()):
-			var b_name = skeleton.get_bone_name(i).to_lower()
+		for i in range(my_skeleton.get_bone_count()):
+			var b_name = my_skeleton.get_bone_name(i).to_lower()
 			if "righthand" in b_name or "hand_r" in b_name or "hand.r" in b_name:
-				hand_bone_name = skeleton.get_bone_name(i)
+				hand_bone_name = my_skeleton.get_bone_name(i)
 				break
 				
 		if hand_bone_name != "":
 			var attachment = BoneAttachment3D.new()
 			attachment.bone_name = hand_bone_name
-			skeleton.add_child(attachment)
+			my_skeleton.add_child(attachment)
 			
 			weapon_slot.get_parent().remove_child(weapon_slot)
 			attachment.add_child(weapon_slot)
 			weapon_slot.transform = Transform3D()
+			
+		var spine_bone_name = ""
+		for i in range(my_skeleton.get_bone_count()):
+			var b_name = my_skeleton.get_bone_name(i).to_lower()
+			if "spine" in b_name or "chest" in b_name or "back" in b_name:
+				spine_bone_name = my_skeleton.get_bone_name(i)
+				if "spine2" in b_name or "spine.002" in b_name or "spine1" in b_name:
+					break
+					
+		if spine_bone_name != "":
+			var bp_attachment = BoneAttachment3D.new()
+			bp_attachment.bone_name = spine_bone_name
+			my_skeleton.add_child(bp_attachment)
+			
+			backpack_node = Node3D.new()
+			bp_attachment.add_child(backpack_node)
 
 func _find_ap(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer: return node
@@ -188,6 +236,18 @@ func setup_animations():
 			anim.loop_mode = Animation.LOOP_LINEAR
 			add_animation_to_player(anim_player, "ArmedRun", anim)
 	armed_run_scene.queue_free()
+	
+	var jump_scene_res = load("res://flavio/Jumping Up.fbx")
+	if jump_scene_res:
+		var jump_scene = jump_scene_res.instantiate()
+		var jump_ap = _find_ap(jump_scene)
+		if jump_ap:
+			var anim = get_first_animation(jump_ap)
+			if anim:
+				anim = anim.duplicate()
+				anim.loop_mode = Animation.LOOP_NONE
+				add_animation_to_player(anim_player, "Jump", anim)
+		jump_scene.queue_free()
 	
 	if anim_player.has_animation("Idle"):
 		anim_player.play("Idle")
@@ -262,16 +322,32 @@ func _process(delta):
 				rope_mesh.queue_free()
 				rope_mesh = null
 				
-	if Input.is_action_just_pressed("shoot"):
-		if grapple_equipped and not is_grappling:
-			_shoot_grapple()
-		elif is_armed:
-			_shoot()
+	var target_grapple_point = null
+	if grapple_equipped and not is_grappling:
+		var closest_dist = 20.0
+		var nodes = get_tree().get_nodes_in_group("grapple_point")
+		for node in nodes:
+			var dist = global_position.distance_to(node.global_position)
+			if dist < closest_dist:
+				closest_dist = dist
+				target_grapple_point = node
+				
+		if target_grapple_point:
+			prompt_label.text = "[ K ]"
+			prompt_label.global_position = target_grapple_point.global_position
+			prompt_label.show()
+			
+			if Input.is_action_just_pressed("grapple_action"):
+				_shoot_grapple(target_grapple_point.global_position)
+				
+	if Input.is_action_just_pressed("shoot") and is_armed:
+		_shoot()
 		
 	if is_armed and weapon_slot.get_child_count() > 0:
 		var w = weapon_slot.get_child(0)
 		w.position = pos_arma
 		w.rotation_degrees = rot_arma
+		w.scale = scale_arma
 
 func _shoot():
 	print("POW! Tiros disparados!")
@@ -280,11 +356,7 @@ func _shoot():
 	if is_armed and weapon_slot.get_child_count() > 0:
 		start_pos = weapon_slot.get_child(0).global_position
 		
-	var end_pos = current_aim_target
-	if end_pos == Vector3.ZERO:
-		end_pos = (global_position + Vector3(0, 1.2, 0)) + (visual.transform.basis * Vector3(0, 0, 50))
-		if shoot_ray and shoot_ray.is_colliding():
-			end_pos = shoot_ray.get_collision_point()
+	var end_pos = start_pos + visual.global_transform.basis.z * 50.0
 		
 	var bullet_script = preload("res://bullet.gd")
 	var bullet = bullet_script.new()
@@ -334,20 +406,51 @@ func _on_inventory_slot_swapped(drag_data, to_slot):
 	
 	if source == "inventory":
 		var from_slot = drag_data["index"]
-		var temp = inventory[to_slot]
-		inventory[to_slot] = item
-		inventory[from_slot] = temp
+		if to_slot == 999:
+			if item.begins_with("mochila") or item == "mochila.fbx":
+				var temp = backpack_item
+				backpack_item = item
+				inventory[from_slot] = temp
+				_update_backpack_model()
+		elif from_slot == 999:
+			var temp = inventory[to_slot]
+			inventory[to_slot] = backpack_item
+			backpack_item = temp
+			_update_backpack_model()
+		else:
+			var temp = inventory[to_slot]
+			inventory[to_slot] = item
+			inventory[from_slot] = temp
 	elif source == "hotbar":
 		var from_hotbar = drag_data["slot"]
-		var temp = inventory[to_slot]
-		inventory[to_slot] = item
-		hotbar_items[from_hotbar] = temp
+		if to_slot == 999:
+			if item.begins_with("mochila") or item == "mochila.fbx":
+				var temp = backpack_item
+				backpack_item = item
+				hotbar_items[from_hotbar] = temp
+				_update_backpack_model()
+		else:
+			var temp = inventory[to_slot]
+			inventory[to_slot] = item
+			hotbar_items[from_hotbar] = temp
 		
 	update_all_ui()
+	
+func _update_backpack_model():
+	if not backpack_node: return
+	for child in backpack_node.get_children():
+		child.queue_free()
+	
+	if backpack_item != "":
+		var bp = load("res://mochilas/mochila.fbx").instantiate()
+		backpack_node.add_child(bp)
+		bp.position = pos_mochila
+		bp.rotation_degrees = rot_mochila
+		bp.scale = scale_mochila
 
 func update_all_ui():
 	if has_node("InventoryUI"):
-		$InventoryUI.update_inventory(inventory)
+		$InventoryUI.update_inventory(inventory, backpack_item)
 		for i in range(hotbar_items.size()):
 			var hs = $InventoryUI.hotbar_slots[i]
 			hs.item_id = hotbar_items[i]
@@ -360,7 +463,7 @@ func _pickup_item(item):
 		if inventory[i] == "":
 			inventory[i] = item_id
 			if has_node("InventoryUI"):
-				$InventoryUI.update_inventory(inventory)
+				$InventoryUI.update_inventory(inventory, backpack_item)
 			item.queue_free()
 			return
 
@@ -370,14 +473,15 @@ func _equip_item(item_id):
 		
 	if item_id == "ak47":
 		var ak = load("res://ak47/Meshy_AI_AK_47_with_wooden_sto_0706200409_texture.fbx").instantiate()
+		weapon_slot.add_child(ak)
 		ak.position = pos_arma
 		ak.rotation_degrees = rot_arma
-		weapon_slot.add_child(ak)
+		ak.scale = scale_arma
 
 func _on_item_dropped(item_id):
 	inventory.erase(item_id)
 	if has_node("InventoryUI"):
-		$InventoryUI.update_inventory(inventory)
+		$InventoryUI.update_inventory(inventory, backpack_item)
 		
 	if item_id == "ak47":
 		var pickup = load("res://ak47_pickup.tscn").instantiate()
@@ -413,11 +517,35 @@ func _physics_process(delta):
 		if current_dist > rope_length:
 			var target_pos = grapple_point + rope_dir * rope_length
 			var correction = target_pos - player_pos
-			global_position += correction
 			
-			var v_dot = velocity.dot(rope_dir)
-			if v_dot > 0:
-				velocity -= rope_dir * v_dot
+			if is_on_floor() and not Input.is_action_pressed("ui_up"):
+				var dy = abs(grapple_point.y - player_pos.y)
+				if rope_length > dy:
+					var anchor_xz = Vector3(grapple_point.x, player_pos.y, grapple_point.z)
+					var dist_xz = player_pos.distance_to(anchor_xz)
+					var max_r = sqrt(rope_length * rope_length - dy * dy)
+					if dist_xz > max_r:
+						var dir_xz = (player_pos - anchor_xz).normalized()
+						if dir_xz.length_squared() == 0: dir_xz = Vector3.RIGHT
+						var target_xz = anchor_xz + dir_xz * max_r
+						global_position.x = target_xz.x
+						global_position.z = target_xz.z
+						
+						var v_xz = Vector3(velocity.x, 0, velocity.z)
+						var v_dot = v_xz.dot(dir_xz)
+						if v_dot > 0:
+							v_xz -= dir_xz * v_dot
+							velocity.x = v_xz.x
+							velocity.z = v_xz.z
+				else:
+					global_position += correction
+					var v_dot = velocity.dot(rope_dir)
+					if v_dot > 0: velocity -= rope_dir * v_dot
+			else:
+				global_position += correction
+				var v_dot = velocity.dot(rope_dir)
+				if v_dot > 0:
+					velocity -= rope_dir * v_dot
 				
 		_update_rope_visual()
 		
@@ -428,51 +556,55 @@ func _physics_process(delta):
 				rope_mesh.queue_free()
 				rope_mesh = null
 				
-	if not is_on_floor():
-		velocity.y -= 9.8 * delta
+		if Input.is_action_just_pressed("ui_accept"): # Pular da corda
+			is_grappling = false
+			grapple_equipped = false
+			if rope_mesh:
+				rope_mesh.queue_free()
+				rope_mesh = null
+			velocity += Vector3.UP * 16.0 + velocity.normalized() * 5.0
+				
+	var current_on_floor = is_on_floor()
+	if current_on_floor != was_on_floor:
+		if not current_on_floor:
+			if my_skeleton and arm_bone_names.size() > 0:
+				my_skeleton.physical_bones_start_simulation(arm_bone_names)
+		else:
+			if my_skeleton:
+				my_skeleton.physical_bones_stop_simulation()
+	was_on_floor = current_on_floor
+	
+	if not current_on_floor:
+		velocity.y -= 25.0 * delta
+	elif Input.is_action_just_pressed("ui_accept") and not is_grappling:
+		velocity.y = 10.0
 		
 	current_aim_target = Vector3.ZERO
-	var is_aiming = is_armed
+	var is_aiming = false # Desabilitando mira com mouse
 	var use_armed_anim = is_armed or grapple_equipped
-	if is_aiming:
-		var camera = get_viewport().get_camera_3d()
-		if camera:
-			var mouse_pos = get_viewport().get_mouse_position()
-			var ray_origin = camera.project_ray_origin(mouse_pos)
-			var ray_dir = camera.project_ray_normal(mouse_pos)
-			
-			var space_state = get_world_3d().direct_space_state
-			var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 1000)
-			query.exclude = [self.get_rid()]
-			
-			var result = space_state.intersect_ray(query)
-			if result:
-				current_aim_target = result.position
-			else:
-				var plane = Plane(Vector3.UP, global_position.y)
-				var intersection = plane.intersects_ray(ray_origin, ray_dir)
-				if intersection != null:
-					current_aim_target = intersection
-					
-			if current_aim_target != Vector3.ZERO:
-				var look_dir = current_aim_target - global_position
-				look_dir.y = 0
-				if look_dir.length_squared() > 0.001:
-					var target_rotation = atan2(look_dir.x, look_dir.z)
-					visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * 1.5 * delta)
 					
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
 	var is_swinging = is_grappling and not is_on_floor()
-	
 	if is_swinging:
-		if direction.length() > 0:
+		var pump_dir = Vector3(input_dir.x, 0, input_dir.y)
+		if pump_dir != Vector3.ZERO:
+			pump_dir = (transform.basis * pump_dir).normalized()
 			var player_pos = global_position + Vector3(0, 1, 0)
 			var rope_dir = (player_pos - grapple_point).normalized()
-			var swing_force = direction * 25.0 * delta
-			var force_dot = swing_force.dot(rope_dir)
-			velocity += (swing_force - rope_dir * force_dot)
+			
+			var tangent_push = pump_dir - rope_dir * pump_dir.dot(rope_dir)
+			if tangent_push.length_squared() > 0.001:
+				tangent_push = tangent_push.normalized()
+				var current_speed_in_dir = velocity.dot(tangent_push)
+				var max_swing_speed = 15.0
+				if current_speed_in_dir < max_swing_speed:
+					velocity += tangent_push * 10.0 * delta
+					
+		# Adicionando um pouco de resistência do ar para parecer mais pesado e natural
+		velocity.x *= 1.0 - (0.5 * delta)
+		velocity.z *= 1.0 - (0.5 * delta)
 			
 		if not is_aiming and velocity.length() > 0.5:
 			var planar_vel = Vector3(velocity.x, 0, velocity.z).normalized()
@@ -491,17 +623,22 @@ func _physics_process(delta):
 			if not is_aiming:
 				var target_rotation = atan2(direction.x, direction.z)
 				visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
-			
-			var run_anim = "ArmedRun" if use_armed_anim else "Run"
-			if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
-				anim_player.play(run_anim, 0.2)
 		else:
 			velocity.x = move_toward(velocity.x, 0, ACCELERATION * delta)
 			velocity.z = move_toward(velocity.z, 0, ACCELERATION * delta)
 			
-			var idle_anim = "ArmedIdle" if use_armed_anim else "Idle"
-			if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
-				anim_player.play(idle_anim, 0.2)
+		if not is_on_floor():
+			if anim_player and anim_player.has_animation("Jump") and anim_player.assigned_animation != "Jump":
+				anim_player.play("Jump", 0.1)
+		else:
+			if direction.length() > 0:
+				var run_anim = "ArmedRun" if use_armed_anim else "Run"
+				if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
+					anim_player.play(run_anim, 0.2)
+			else:
+				var idle_anim = "ArmedIdle" if use_armed_anim else "Idle"
+				if anim_player and anim_player.has_animation(idle_anim) and anim_player.current_animation != idle_anim:
+					anim_player.play(idle_anim, 0.2)
 			
 	if walk_particles:
 		var is_walking = velocity.length() > 0.5 and is_on_floor()
@@ -522,31 +659,21 @@ func exit_vehicle(pos: Vector3):
 	show()
 	$CameraArm/Camera3D.current = true
 
-func _shoot_grapple():
-	var space_state = get_world_3d().direct_space_state
-	var camera = get_viewport().get_camera_3d()
-	var mouse_pos = get_viewport().get_mouse_position()
-	var origin = camera.project_ray_origin(mouse_pos)
-	var end = origin + camera.project_ray_normal(mouse_pos) * 100.0
+func _shoot_grapple(target_pos: Vector3):
+	grapple_point = target_pos
+	var player_pos = global_position + Vector3(0, 1, 0)
+	rope_length = player_pos.distance_to(grapple_point)
+	is_grappling = true
 	
-	var query = PhysicsRayQueryParameters3D.create(origin, end)
-	var result = space_state.intersect_ray(query)
-	
-	if result and result.collider and result.collider.is_in_group("grapple_point"):
-		grapple_point = result.position
-		var player_pos = global_position + Vector3(0, 1, 0)
-		rope_length = player_pos.distance_to(grapple_point)
-		is_grappling = true
-		
-		rope_mesh = MeshInstance3D.new()
-		var cyl = CylinderMesh.new()
-		cyl.top_radius = 0.05
-		cyl.bottom_radius = 0.05
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.2, 0.2, 0.2)
-		cyl.material = mat
-		rope_mesh.mesh = cyl
-		get_tree().root.add_child(rope_mesh)
+	rope_mesh = MeshInstance3D.new()
+	var cyl = CylinderMesh.new()
+	cyl.top_radius = 0.05
+	cyl.bottom_radius = 0.05
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.2, 0.2)
+	cyl.material = mat
+	rope_mesh.mesh = cyl
+	get_tree().root.add_child(rope_mesh)
 
 func _update_rope_visual():
 	if not rope_mesh: return

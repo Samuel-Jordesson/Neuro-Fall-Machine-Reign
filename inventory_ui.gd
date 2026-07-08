@@ -11,6 +11,9 @@ signal inventory_slot_swapped(drag_data: Dictionary, to_slot: int)
 @onready var hotbar_slots = [$Hotbar/Slot1, $Hotbar/Slot2, $Hotbar/Slot3, $Hotbar/Slot4]
 
 var inventory_slots_ui = []
+var backpack_slot_ui = null
+var extra_grid_container = null
+var extra_panel_node = null
 
 func _ready():
 	panel.hide()
@@ -50,7 +53,55 @@ func _ready():
 	style_slot.corner_radius_bottom_right = 6
 	style_slot.corner_radius_bottom_left = 6
 		
-	for i in range(12):
+	panel.offset_left = -380.0
+	
+	extra_panel_node = ColorRect.new()
+	extra_panel_node.color = Color(0.2, 0.2, 0.2, 0.6)
+	extra_panel_node.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	extra_panel_node.position = Vector2(-380, 0)
+	extra_panel_node.size = Vector2(379, panel.size.y)
+	extra_panel_node.anchor_bottom = 1.0
+	
+	var border = ColorRect.new()
+	border.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	border.anchor_left = 1.0
+	border.anchor_right = 1.0
+	border.offset_left = -1
+	border.offset_right = 0
+	extra_panel_node.add_child(border)
+	panel.add_child(extra_panel_node)
+	
+	# Create Backpack Slot
+	var bp_bg = Panel.new()
+	bp_bg.custom_minimum_size = Vector2(56, 56)
+	bp_bg.size = Vector2(56, 56)
+	bp_bg.position = Vector2(58, 310)
+	bp_bg.add_theme_stylebox_override("panel", style_slot)
+	
+	backpack_slot_ui = InventorySlot.new()
+	backpack_slot_ui.slot_index = 999
+	backpack_slot_ui.inventory_ui = self
+	backpack_slot_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backpack_slot_ui.color = Color(0, 0, 0, 0)
+	
+	var bp_lbl = Label.new()
+	bp_lbl.text = "Bag"
+	bp_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bp_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bp_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bp_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.5))
+	bp_bg.add_child(bp_lbl)
+	bp_bg.add_child(backpack_slot_ui)
+	panel.add_child(bp_bg)
+	
+	extra_grid_container = GridContainer.new()
+	extra_grid_container.position = Vector2(58, 93)
+	extra_grid_container.columns = 4
+	extra_grid_container.add_theme_constant_override("h_separation", 13)
+	extra_grid_container.add_theme_constant_override("v_separation", 13)
+	extra_panel_node.add_child(extra_grid_container)
+		
+	for i in range(24):
 		var slot_bg = Panel.new()
 		slot_bg.custom_minimum_size = Vector2(56, 56)
 		slot_bg.add_theme_stylebox_override("panel", style_slot)
@@ -62,8 +113,14 @@ func _ready():
 		slot_content.color = Color(0, 0, 0, 0)
 		slot_bg.add_child(slot_content)
 		
-		grid_container.add_child(slot_bg)
+		if i < 12:
+			grid_container.add_child(slot_bg)
+		else:
+			extra_grid_container.add_child(slot_bg)
+			
 		inventory_slots_ui.append(slot_content)
+		
+	extra_panel_node.hide()
 
 func toggle():
 	panel.visible = !panel.visible
@@ -76,8 +133,8 @@ func toggle():
 		$Hotbar/BackpackContainer.show()
 		$Hotbar/Spacer.show()
 
-func update_inventory(inventory: Array):
-	for i in range(12):
+func update_inventory(inventory: Array, backpack_item: String):
+	for i in range(24):
 		for child in inventory_slots_ui[i].get_children():
 			child.queue_free()
 			
@@ -94,7 +151,7 @@ func update_inventory(inventory: Array):
 				icon.offset_right = -5
 				icon.offset_bottom = -5
 				inventory_slots_ui[i].add_child(icon)
-			else:
+			elif inventory[i] != "":
 				var label = Label.new()
 				label.text = inventory[i]
 				label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -103,6 +160,21 @@ func update_inventory(inventory: Array):
 				inventory_slots_ui[i].add_child(label)
 		else:
 			inventory_slots_ui[i].item_id = ""
+			
+	for child in backpack_slot_ui.get_children():
+		child.queue_free()
+		
+	backpack_slot_ui.item_id = backpack_item
+	if backpack_item != "":
+		var label = Label.new()
+		label.text = backpack_item
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		backpack_slot_ui.add_child(label)
+		extra_panel_node.show()
+	else:
+		extra_panel_node.hide()
 
 
 class InventorySlot extends ColorRect:

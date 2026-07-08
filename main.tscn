@@ -4,7 +4,10 @@
 [ext_resource type="PackedScene" uid="uid://dbx52e4w1l" path="res://ak47_pickup.tscn" id="2_ak47"]
 [ext_resource type="PackedScene" uid="uid://da4ehhxjl7b4s" path="res://rua/poste/post.glb" id="3_h2yge"]
 [ext_resource type="PackedScene" uid="uid://bn2vwp3lw25lk" path="res://rua/modelo/curva-b.glb" id="5_lquwl"]
-[ext_resource type="PackedScene" path="res://carro.tscn" id="6_carro"]
+[ext_resource type="PackedScene" uid="uid://wvbf751a4ti1" path="res://arvores/arvore1/jabami_anime_bush_v1.glb" id="6_5vw27"]
+[ext_resource type="PackedScene" uid="uid://dfpfg73ftjehu" path="res://carro.tscn" id="6_carro"]
+[ext_resource type="PackedScene" uid="uid://ckysm76ett3kv" path="res://arvores/arvore2/jabami_anime_tree_v4.glb" id="7_kek77"]
+[ext_resource type="PackedScene" uid="uid://c8x52e4w12" path="res://mochila_pickup.tscn" id="mochila_pickup"]
 
 [sub_resource type="Gradient" id="Gradient_ig7tw"]
 offsets = PackedFloat32Array(0.2, 1)
@@ -88,6 +91,9 @@ shadow_enabled = true
 [node name="Player" parent="." unique_id=143137849 instance=ExtResource("1_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6203041, 0)
 rot_arma = Vector3(0, 0, -76.625)
+pos_mochila = Vector3(0, -0.63, 0)
+rot_mochila = Vector3(0, 0, 0)
+scale_mochila = Vector3(1.43, 1, 1)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=502617404]
 data_directory = "res://terreno"
@@ -96,14 +102,6 @@ assets = SubResource("Terrain3DAssets_272bh")
 collision_mode = 3
 show_checkered = true
 top_level = true
-metadata/_edit_lock_ = true
-
-[node name="CarroVerde" parent="." unique_id=1787820202 instance=ExtResource("6_carro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1, -5)
-top_level = true
-gravity_scale = 1.0
-center_of_mass_mode = 0
-center_of_mass = Vector3(0, 0, 0)
 metadata/_edit_lock_ = true
 
 [node name="AK47Pickup" parent="." unique_id=1088073892 instance=ExtResource("2_ak47")]
@@ -133,3 +131,15 @@ shape = SubResource("BoxShape3D_grapple")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="GrapplePoint" unique_id=212502645]
 mesh = SubResource("BoxMesh_grapple")
+
+[node name="Sketchfab_Scene" parent="." unique_id=1729296717 instance=ExtResource("6_5vw27")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.0921803, 0, 5.2316113)
+
+[node name="Sketchfab_Scene2" parent="." unique_id=432124421 instance=ExtResource("7_kek77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.560282, 0, -0.7337618)
+
+[node name="CarroVerde2" parent="." unique_id=157677296 instance=ExtResource("6_carro")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.404955, 0, 2.2859244)
+
+[node name="MochilaPickup" parent="." unique_id=987654321 instance=ExtResource("mochila_pickup")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
