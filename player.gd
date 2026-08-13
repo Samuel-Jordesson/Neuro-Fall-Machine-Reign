@@ -54,10 +54,51 @@ var was_on_floor: bool = true
 		if backpack_node and backpack_node.get_child_count() > 0:
 			backpack_node.get_child(0).scale = value
 
+@export_group("Água")
+## Velocidade nadando, bem menor que andando.
+@export var swim_speed := 2.6
+## Velocidade subindo/descendo na água (Espaço sobe).
+@export var swim_vertical_speed := 3.0
+## Quanto o empuxo puxa o corpo de volta pra linha d'água.
+@export var buoyancy := 5.0
+## Profundidade do pé em que o personagem deixa de andar e começa a nadar.
+@export var swim_depth := 1.2
+## Profundidade em que o empuxo estabiliza o corpo boiando. Menor = boia mais
+## alto. É isto que decide onde a linha d'água corta o personagem, não o
+## swim_depth acima.
+@export var float_depth := 0.55
+## Metros percorridos entre um anel de rastro e o próximo.
+@export var ripple_spacing := 0.55
+## Braçadas por segundo nadando pra frente.
+@export var swim_stroke_speed := 1.1
+## Ritmo mais lento de quando está só boiando parado.
+@export var swim_tread_speed := 0.55
+## Inclinação do corpo ao nadar, em graus (0 = boiando em pé, 90 = deitado).
+@export var swim_pitch_degrees := 72.0
+## Inverte o sentido da braçada, caso o rig fique nadando de costas.
+@export var swim_stroke_inverted := false
+
 var interactable_target = null
 var current_vehicle = null
 var current_aim_target = Vector3.ZERO
 var walk_particles: GPUParticles3D
+var splash_particles: GPUParticles3D
+
+# --- estado da água ---
+var water_body: Node3D = null
+var water_depth := -999.0
+var is_in_water := false
+var is_swimming := false
+var _ripple_travel := 0.0
+var _last_ripple_pos := Vector3.ZERO
+var _swim_time := 0.0
+## 0 = fora d'água, 1 = pose de natação aplicada por inteiro.
+var _swim_blend := 0.0
+## 0 = boiando parado, 1 = nadando pra frente.
+var _swim_move_blend := 0.0
+
+# Ossos usados pela natação procedural. -1 = não encontrado no rig.
+var _swim_bones := {}
 
 func _ready():
 	var inputs = {
@@ -98,7 +139,8 @@ func _ready():
 		$InventoryUI.inventory_slot_swapped.connect(_on_inventory_slot_swapped)
 		
 	_setup_walk_particles()
-		
+	_setup_splash_particles()
+
 	call_deferred("_setup_bone_attachment")
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -149,6 +191,52 @@ func _setup_walk_particles():
 	add_child(walk_particles)
 	walk_particles.position = Vector3(0, 0.1, 0)
 
+func _setup_splash_particles():
+	# Respingos que saem na linha d'agua quando o personagem se mexe na agua.
+	splash_particles = GPUParticles3D.new()
+	splash_particles.emitting = false
+	splash_particles.amount = 24
+	splash_particles.lifetime = 0.7
+	splash_particles.local_coords = false
+
+	var mat = ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.35
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 35.0
+	mat.initial_velocity_min = 1.5
+	mat.initial_velocity_max = 3.5
+	mat.gravity = Vector3(0, -9.0, 0)
+	mat.scale_min = 0.04
+	mat.scale_max = 0.12
+	mat.damping_min = 0.5
+	mat.damping_max = 1.5
+
+	var grad = Gradient.new()
+	grad.add_point(0.0, Color(0.85, 0.95, 1.0, 0.9))
+	grad.add_point(0.6, Color(0.7, 0.9, 1.0, 0.6))
+	grad.add_point(1.0, Color(0.7, 0.9, 1.0, 0.0))
+	var grad_tex = GradientTexture1D.new()
+	grad_tex.gradient = grad
+	mat.color_ramp = grad_tex
+
+	splash_particles.process_material = mat
+
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	sphere.radial_segments = 6
+	sphere.rings = 3
+	var pmat = StandardMaterial3D.new()
+	pmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pmat.vertex_color_use_as_albedo = true
+	pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sphere.material = pmat
+
+	splash_particles.draw_pass_1 = sphere
+	splash_particles.top_level = true
+	add_child(splash_particles)
+
 func _setup_bone_attachment():
 	my_skeleton = _find_skeleton(visual)
 	if my_skeleton:
@@ -188,6 +276,195 @@ func _setup_bone_attachment():
 			
 			backpack_node = Node3D.new()
 			bp_attachment.add_child(backpack_node)
+
+	_find_swim_bones()
+
+# --- natação procedural -------------------------------------------------------
+
+## Acha os ossos da braçada por nome aproximado, do mesmo jeito que o resto do
+## arquivo faz, pra funcionar mesmo se o rig for reexportado com outro prefixo.
+func _find_swim_bones():
+	_swim_bones.clear()
+	if not my_skeleton:
+		return
+
+	# "todas estas palavras" e "nenhuma destas", pra nao confundir
+	# LeftArm com LeftForeArm nem LeftUpLeg com LeftLeg.
+	var wanted := {
+		"hips":       [["hips"], ["upleg"]],
+		"spine":      [["spine1"], []],
+		"l_arm":      [["left", "arm"], ["fore", "lower", "hand"]],
+		"r_arm":      [["right", "arm"], ["fore", "lower", "hand"]],
+		"l_forearm":  [["left", "forearm"], ["hand"]],
+		"r_forearm":  [["right", "forearm"], ["hand"]],
+		"l_upleg":    [["left", "upleg"], []],
+		"r_upleg":    [["right", "upleg"], []],
+		"l_leg":      [["left", "leg"], ["upleg"]],
+		"r_leg":      [["right", "leg"], ["upleg"]],
+	}
+
+	for key in wanted:
+		var must: Array = wanted[key][0]
+		var must_not: Array = wanted[key][1]
+		_swim_bones[key] = _find_bone(must, must_not)
+
+func _find_bone(must: Array, must_not: Array) -> int:
+	for i in range(my_skeleton.get_bone_count()):
+		var n := my_skeleton.get_bone_name(i).to_lower()
+		var ok := true
+		for m in must:
+			if not (m in n):
+				ok = false
+				break
+		if ok:
+			for m in must_not:
+				if m in n:
+					ok = false
+					break
+		if ok:
+			return i
+	return -1
+
+## Aponta um osso para uma direção dada em espaço do corpo
+## (X = esquerda, Y = cima, Z = frente do personagem).
+##
+## Girar em torno de um eixo fixo não serve aqui: o rig está em T-pose, então o
+## braço já aponta pro lado e girar no eixo lateral só torceria o osso no lugar.
+## Apontar resolve isso e ainda fica independente de como o rig foi orientado —
+## a direção de repouso vem do próprio esqueleto.
+func _point_bone(key: String, body_dir: Vector3, weight: float) -> void:
+	var idx: int = _swim_bones.get(key, -1)
+	if idx < 0 or weight <= 0.001:
+		return
+
+	var g_rest := my_skeleton.get_bone_global_rest(idx)
+	# Todo osso deste rig aponta pelo próprio +Y local (verificado no esqueleto).
+	var rest_dir: Vector3 = (g_rest.basis * Vector3.UP).normalized()
+	var target := body_dir.normalized()
+	if rest_dir.length_squared() < 0.5 or target.length_squared() < 0.5:
+		return
+
+	# Rotação mínima que leva a direção de repouso até a direção pedida.
+	var q := Quaternion(rest_dir, target)
+	q = Quaternion.IDENTITY.slerp(q, clampf(weight, 0.0, 1.0))
+
+	var desired_global := Basis(q) * g_rest.basis
+	var parent := my_skeleton.get_bone_parent(idx)
+	var parent_basis := Basis()
+	if parent >= 0:
+		# Repouso do pai (e não a pose atual) pra não depender da ordem em que
+		# os ossos são escritos neste frame.
+		parent_basis = my_skeleton.get_bone_global_rest(parent).basis
+	var local := parent_basis.inverse() * desired_global
+	my_skeleton.set_bone_pose_rotation(idx, local.get_rotation_quaternion())
+
+## Deita o corpo na água e toca a braçada. Roda em _process (e não em
+## _physics_process) porque precisa acontecer depois do AnimationPlayer, senão a
+## animação sobrescreve os ossos que a braçada acabou de posicionar.
+func _update_swim_visual(delta: float) -> void:
+	if not visual:
+		return
+
+	# Enquanto nada, o AnimationPlayer fica pausado pra não brigar com a pose.
+	if anim_player:
+		if is_swimming and anim_player.is_playing():
+			anim_player.pause()
+		elif not is_swimming and not anim_player.is_playing() and _swim_blend <= 0.001:
+			var resume := "ArmedIdle" if (is_armed or grapple_equipped) else "Idle"
+			if anim_player.has_animation(resume):
+				anim_player.play(resume, 0.2)
+
+	# Só deita o corpo quando está de fato se deslocando. Boiando parado ele
+	# fica em pé na água, com a cabeça pra fora.
+	var lay_down := _swim_blend * _swim_move_blend
+	visual.rotation.x = lerp_angle(
+		visual.rotation.x, deg_to_rad(swim_pitch_degrees) * lay_down, 5.0 * delta)
+
+	# Deitado o pivô continua nos pés, então levanta o visual pra que o corpo
+	# fique na linha d'água em vez de afundado. Amarrado no float_depth pra que
+	# mexer na flutuação não descole o corpo da superfície ao nadar.
+	visual.position.y = lerpf(visual.position.y, float_depth * 0.8 * lay_down, 5.0 * delta)
+
+	_update_swim_pose(delta)
+
+## Pose de natação inteira, montada por código a cada frame.
+##
+## São duas poses que se misturam pelo quanto o personagem está se deslocando:
+##   _swim_move_blend = 0 -> boiando parado em pé, braços abertos, pés batendo
+##   _swim_move_blend = 1 -> nado crawl, corpo deitado, braçada alternada
+##
+## Tudo é descrito em espaço do corpo: +X esquerda, +Y cima, +Z frente. Como o
+## nó Visual é quem deita o corpo na água, aqui o personagem é sempre "em pé" e
+## o +Y vira a direção de nado depois do pitch.
+func _update_swim_pose(delta: float) -> void:
+	if not my_skeleton or _swim_bones.is_empty():
+		return
+
+	# Blend suave pra entrada e saída da água não estalar.
+	var target_blend := 1.0 if is_swimming else 0.0
+	_swim_blend = move_toward(_swim_blend, target_blend, 4.0 * delta)
+	if _swim_blend <= 0.001:
+		return
+
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var move_target := clampf(speed / maxf(swim_speed, 0.01), 0.0, 1.0)
+	_swim_move_blend = move_toward(_swim_move_blend, move_target, 2.5 * delta)
+
+	var b := _swim_blend
+	var m := _swim_move_blend
+	var flip := -1.0 if swim_stroke_inverted else 1.0
+
+	# Boiando o ritmo é lento; nadando é a cadência da braçada.
+	_swim_time += delta * lerpf(swim_tread_speed, swim_stroke_speed, m) * TAU
+
+	var p := _swim_time * flip
+	var stroke_l := sin(p)
+	var stroke_r := sin(p + PI)
+	var kick_l := sin(p * 2.0)
+	var kick_r := sin(p * 2.0 + PI)
+	var scull := sin(p)
+
+	# --- braços -------------------------------------------------------------
+	# Parado: abertos pros lados, um pouco abaixo da horizontal, varrendo a água
+	# pra frente e pra trás (é isso que segura o corpo boiando).
+	var tread_l := Vector3(1.0, -0.30, 0.45 * scull)
+	var tread_r := Vector3(-1.0, -0.30, 0.45 * scull)
+	# Nadando: moinho no plano vertical, um braço puxa enquanto o outro recupera.
+	var crawl_l := Vector3(0.30, cos(p), -sin(p))
+	var crawl_r := Vector3(-0.30, cos(p + PI), -sin(p + PI))
+
+	_point_bone("l_arm", tread_l.lerp(crawl_l, m), b)
+	_point_bone("r_arm", tread_r.lerp(crawl_r, m), b)
+
+	# Cotovelo: parado fica dobrado pra frente; nadando dobra só na recuperação.
+	var tread_fore_l := Vector3(0.55, -0.35, 0.75)
+	var tread_fore_r := Vector3(-0.55, -0.35, 0.75)
+	var crawl_fore_l := crawl_l.lerp(Vector3(0.30, 0.2, 0.9), maxf(0.0, -stroke_l) * 0.6)
+	var crawl_fore_r := crawl_r.lerp(Vector3(-0.30, 0.2, 0.9), maxf(0.0, -stroke_r) * 0.6)
+
+	_point_bone("l_forearm", tread_fore_l.lerp(crawl_fore_l, m), b)
+	_point_bone("r_forearm", tread_fore_r.lerp(crawl_fore_r, m), b)
+
+	# --- pernas -------------------------------------------------------------
+	# Parado: pedalada de pernas, joelho dobrado, amplitude maior.
+	var tread_leg_l := Vector3(0.25, -1.0, 0.55 * kick_l)
+	var tread_leg_r := Vector3(-0.25, -1.0, 0.55 * kick_r)
+	# Nadando: batida de crawl, pernas quase retas e amplitude curta.
+	var crawl_leg_l := Vector3(0.12, -1.0, 0.30 * kick_l)
+	var crawl_leg_r := Vector3(-0.12, -1.0, 0.30 * kick_r)
+
+	_point_bone("l_upleg", tread_leg_l.lerp(crawl_leg_l, m), b)
+	_point_bone("r_upleg", tread_leg_r.lerp(crawl_leg_r, m), b)
+
+	# Canela segue a coxa com atraso, que é o que dá a chicotada da pernada.
+	var shin_bend: float = lerpf(0.45, 0.18, m)
+	_point_bone("l_leg", Vector3(0.1, -1.0, shin_bend + 0.3 * kick_l).normalized(), b)
+	_point_bone("r_leg", Vector3(-0.1, -1.0, shin_bend + 0.3 * kick_r).normalized(), b)
+
+	# --- tronco -------------------------------------------------------------
+	# Rolagem leve acompanhando a braçada, que é o que tira a cara de boneco.
+	var spine_dir := Vector3(0.08 * stroke_l * m, 1.0, 0.05 * sin(p * 0.5))
+	_point_bone("spine", spine_dir, b * 0.6)
 
 func _find_ap(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer: return node
@@ -299,6 +576,8 @@ func add_animation_to_player(ap: AnimationPlayer, anim_name: String, anim: Anima
 
 
 func _process(delta):
+	_update_swim_visual(delta)
+
 	interactable_target = null
 	prompt_label.hide()
 	
@@ -579,8 +858,8 @@ func _physics_process(delta):
 				if v_dot > 0:
 					velocity -= rope_dir * v_dot
 				
-		_update_rope_visual()
-		
+		_update_rope_visual(delta)
+
 		if Input.is_action_just_pressed("grapple_equip"):
 			is_grappling = false
 			grapple_equipped = false
@@ -596,17 +875,23 @@ func _physics_process(delta):
 				rope_mesh = null
 			velocity += Vector3.UP * 16.0 + velocity.normalized() * 5.0
 				
+	_update_water_state()
+
 	var current_on_floor = is_on_floor()
 	if current_on_floor != was_on_floor:
-		if not current_on_floor:
+		# Na água os braços são controlados pela braçada, então o ragdoll de
+		# queda não pode entrar ou ele briga com a pose procedural.
+		if not current_on_floor and not is_in_water:
 			if my_skeleton and arm_bone_names.size() > 0:
 				my_skeleton.physical_bones_start_simulation(arm_bone_names)
 		else:
 			if my_skeleton:
 				my_skeleton.physical_bones_stop_simulation()
 	was_on_floor = current_on_floor
-	
-	if not current_on_floor:
+
+	if is_swimming:
+		_apply_buoyancy(delta)
+	elif not current_on_floor:
 		velocity.y -= 25.0 * delta
 	elif Input.is_action_just_pressed("ui_accept") and not is_grappling:
 		velocity.y = 10.0
@@ -651,18 +936,22 @@ func _physics_process(delta):
 		if anim_player and anim_player.has_animation(run_anim) and anim_player.current_animation != run_anim:
 			anim_player.play(run_anim, 0.2)
 	else:
+		var move_speed := swim_speed if is_swimming else SPEED
 		if direction.length() > 0:
-			velocity.x = move_toward(velocity.x, direction.x * SPEED, ACCELERATION * delta)
-			velocity.z = move_toward(velocity.z, direction.z * SPEED, ACCELERATION * delta)
-			
+			velocity.x = move_toward(velocity.x, direction.x * move_speed, ACCELERATION * delta)
+			velocity.z = move_toward(velocity.z, direction.z * move_speed, ACCELERATION * delta)
+
 			if not is_aiming:
 				var target_rotation = atan2(direction.x, direction.z)
 				visual.rotation.y = lerp_angle(visual.rotation.y, target_rotation, ROTATION_SPEED * delta)
 		else:
 			velocity.x = move_toward(velocity.x, 0, ACCELERATION * delta)
 			velocity.z = move_toward(velocity.z, 0, ACCELERATION * delta)
-			
-		if not is_on_floor():
+
+		if is_swimming:
+			# A pose vem de _update_swim_pose, não do AnimationPlayer.
+			pass
+		elif not is_on_floor():
 			if anim_player and anim_player.has_animation("Jump") and anim_player.assigned_animation != "Jump":
 				anim_player.play("Jump", 0.1)
 		else:
@@ -678,10 +967,73 @@ func _physics_process(delta):
 					anim_player.play(idle_anim, 0.2)
 			
 	if walk_particles:
-		var is_walking = velocity.length() > 0.5 and is_on_floor()
+		# A fumaça de pisada não sai debaixo d'água.
+		var is_walking = velocity.length() > 0.5 and is_on_floor() and not is_in_water
 		walk_particles.emitting = is_walking
-			
+
+	_update_water_fx(delta)
+
 	move_and_slide()
+
+# --- água ---------------------------------------------------------------------
+
+## Descobre em que água o personagem está e o quanto está submerso.
+func _update_water_state() -> void:
+	water_body = null
+	for w in get_tree().get_nodes_in_group("water"):
+		if w.has_method("contains_xz") and w.contains_xz(global_position):
+			water_body = w
+			break
+
+	if water_body:
+		water_depth = water_body.get_surface_y() - global_position.y
+	else:
+		water_depth = -999.0
+
+	is_in_water = water_depth > 0.05
+
+	# Histerese. O empuxo estabiliza o corpo em float_depth, que é mais raso do
+	# que o swim_depth em que a natação começa; sem dois limiares diferentes ele
+	# ficaria alternando entre nadar e afundar todo frame.
+	if is_swimming:
+		is_swimming = water_depth > float_depth * 0.5
+	else:
+		is_swimming = water_depth > swim_depth
+
+## Empuxo: puxa o corpo de volta pra linha d'água em vez de aplicar gravidade.
+func _apply_buoyancy(delta: float) -> void:
+	var target_y := (water_depth - float_depth) * buoyancy
+	if Input.is_action_pressed("ui_accept"):
+		target_y = swim_vertical_speed
+	target_y = clampf(target_y, -swim_vertical_speed, swim_vertical_speed)
+	velocity.y = move_toward(velocity.y, target_y, 12.0 * delta)
+
+## Respingos e rastros na superfície.
+func _update_water_fx(delta: float) -> void:
+	if splash_particles:
+		var moving := Vector2(velocity.x, velocity.z).length() > 0.8
+		splash_particles.emitting = is_in_water and moving
+		if is_in_water:
+			# Os respingos saem na linha d'água, não nos pés.
+			splash_particles.global_position = Vector3(
+				global_position.x, water_body.get_surface_y(), global_position.z)
+
+	if not is_in_water or not water_body:
+		_ripple_travel = 0.0
+		_last_ripple_pos = global_position
+		return
+
+	# Um anel a cada ripple_spacing metros percorridos, pra o rastro ficar
+	# espaçado igual independente da velocidade.
+	var moved := Vector2(global_position.x - _last_ripple_pos.x,
+		global_position.z - _last_ripple_pos.z).length()
+	_last_ripple_pos = global_position
+	_ripple_travel += moved
+
+	if _ripple_travel >= ripple_spacing:
+		_ripple_travel = 0.0
+		var speed := Vector2(velocity.x, velocity.z).length()
+		water_body.spawn_ripple(global_position, clampf(speed / SPEED, 0.35, 1.0))
 
 func enter_vehicle(vehicle):
 	current_vehicle = vehicle
@@ -703,27 +1055,18 @@ func _shoot_grapple(target_pos: Vector3):
 	is_grappling = true
 	
 	rope_mesh = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = 0.05
-	cyl.bottom_radius = 0.05
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.2, 0.2, 0.2)
-	cyl.material = mat
-	rope_mesh.mesh = cyl
+	rope_mesh.set_script(load("res://rope.gd"))
 	get_tree().root.add_child(rope_mesh)
+	rope_mesh.setup(grapple_point, _rope_hand_pos(), rope_length)
 
-func _update_rope_visual():
-	if not rope_mesh: return
-	var player_pos = global_position + Vector3(0, 1, 0)
-	var mid_point = (player_pos + grapple_point) / 2.0
-	var rope_vec = grapple_point - player_pos
-	var dist = rope_vec.length()
-	
-	rope_mesh.global_position = mid_point
-	rope_mesh.mesh.height = dist
-	
-	var up = Vector3.UP
-	if abs(rope_vec.normalized().y) > 0.99:
-		up = Vector3.RIGHT
-	rope_mesh.look_at_from_position(mid_point, grapple_point, up)
-	rope_mesh.rotation_degrees.x -= 90
+## De onde a corda sai no personagem. O weapon_slot já é filho do osso da mão
+## (ver _setup_bone_attachment), então a corda acompanha a mão de graça.
+func _rope_hand_pos() -> Vector3:
+	if weapon_slot:
+		return weapon_slot.global_position
+	return global_position + Vector3(0, 1, 0)
+
+func _update_rope_visual(delta: float):
+	if not rope_mesh:
+		return
+	rope_mesh.update_rope(grapple_point, _rope_hand_pos(), rope_length, delta)

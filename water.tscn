@@ -1,6 +1,7 @@
-[gd_scene format=3 uid="uid://water1234567"]
+[gd_scene load_steps=2 format=3 uid="uid://water1234567"]
 
 [ext_resource type="Shader" path="res://water.gdshader" id="1_water"]
+[ext_resource type="Script" path="res://water.gd" id="2_water_script"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_wave1"]
 noise_type = 3
@@ -58,3 +59,4 @@ subdivide_depth = 100
 
 [node name="Water" type="MeshInstance3D"]
 mesh = SubResource("PlaneMesh_water")
+script = ExtResource("2_water_script")

@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dfpfg73ftjehu" path="res://carro.tscn" id="6_carro"]
 [ext_resource type="PackedScene" uid="uid://b34ta2vhw05h" path="res://rua/rua-nova.glb" id="8_5vw27"]
 [ext_resource type="PackedScene" uid="uid://water1234567" path="res://water.tscn" id="8_water"]
+[ext_resource type="PackedScene" uid="uid://cejqlfo3guujd" path="res://arvores/arvore-anime/jabami_anime_tree_v1.glb" id="9_kek77"]
 [ext_resource type="PackedScene" uid="uid://c8x52e4w12" path="res://mochila_pickup.tscn" id="mochila_pickup"]
 
 [sub_resource type="Gradient" id="Gradient_ig7tw"]
@@ -121,6 +122,9 @@ mesh = SubResource("BoxMesh_grapple")
 
 [node name="CarroVerde2" parent="." unique_id=157677296 instance=ExtResource("6_carro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.404955, 0, 2.2859244)
+gravity_scale = 1.5
+continuous_cd = true
+angular_damp = 0.3
 
 [node name="MochilaPickup" parent="." unique_id=987654321 instance=ExtResource("mochila_pickup")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
@@ -130,3 +134,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.29927, -0.7027664, -16.069
 
 [node name="rua-nova" parent="." unique_id=381330312 instance=ExtResource("8_5vw27")]
 transform = Transform3D(1.925, 0, 0, 0, 1.925, 0, 0, 0, 1.925, -17.023872, 4.7683716e-07, 7.4181604)
+
+[node name="Sketchfab_Scene" parent="." unique_id=214054656 instance=ExtResource("9_kek77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.844245, 0, -2.5901122)

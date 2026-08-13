@@ -11,9 +11,9 @@ radius = 6.0
 
 [node name="CarroVerde" type="VehicleBody3D" unique_id=157677296]
 mass = 1500.0
-gravity_scale = 1.5
+gravity_scale = 1.2
 center_of_mass_mode = 1
-center_of_mass = Vector3(0, -1.6, 0)
+center_of_mass = Vector3(0, 0.5, -0.2)
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." unique_id=423401442 instance=ExtResource("2_fbx")]
@@ -27,39 +27,51 @@ shape = SubResource("BoxShape3D_car")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.8080951, -3)
 use_as_traction = true
 use_as_steering = true
-wheel_roll_influence = 0.05
+wheel_roll_influence = 0.5
 wheel_radius = 0.8
-suspension_travel = 0.8
-suspension_stiffness = 40.0
-suspension_max_force = 10000.0
+wheel_rest_length = 0.15
+suspension_travel = 0.3
+suspension_stiffness = 55.0
+suspension_max_force = 16000.0
+damping_compression = 0.7
+damping_relaxation = 0.9
 
 [node name="WheelFrontRight" type="VehicleWheel3D" parent="." unique_id=1105654777]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.8080951, -3)
 use_as_traction = true
 use_as_steering = true
-wheel_roll_influence = 0.05
+wheel_roll_influence = 0.5
 wheel_radius = 0.8
-suspension_travel = 0.8
-suspension_stiffness = 40.0
-suspension_max_force = 10000.0
+wheel_rest_length = 0.15
+suspension_travel = 0.3
+suspension_stiffness = 55.0
+suspension_max_force = 16000.0
+damping_compression = 0.7
+damping_relaxation = 0.9
 
 [node name="WheelBackLeft" type="VehicleWheel3D" parent="." unique_id=670827442]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.8080951, 3)
 use_as_traction = true
-wheel_roll_influence = 0.05
+wheel_roll_influence = 0.5
 wheel_radius = 0.8
-suspension_travel = 0.8
-suspension_stiffness = 40.0
-suspension_max_force = 10000.0
+wheel_rest_length = 0.15
+suspension_travel = 0.3
+suspension_stiffness = 55.0
+suspension_max_force = 16000.0
+damping_compression = 0.7
+damping_relaxation = 0.9
 
 [node name="WheelBackRight" type="VehicleWheel3D" parent="." unique_id=1807780211]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.8080951, 3)
 use_as_traction = true
-wheel_roll_influence = 0.05
+wheel_roll_influence = 0.5
 wheel_radius = 0.8
-suspension_travel = 0.8
-suspension_stiffness = 40.0
-suspension_max_force = 10000.0
+wheel_rest_length = 0.15
+suspension_travel = 0.3
+suspension_stiffness = 55.0
+suspension_max_force = 16000.0
+damping_compression = 0.7
+damping_relaxation = 0.9
 
 [node name="CameraArm" type="Node3D" parent="." unique_id=34777198]
 
