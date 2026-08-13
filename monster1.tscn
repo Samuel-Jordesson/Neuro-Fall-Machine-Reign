@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dkbacc2iafwt5"]
+
+[ext_resource type="Script" path="res://monster.gd" id="1_mscript"]
+[ext_resource type="PackedScene" uid="uid://d1qh7xbtne6q1" path="res://monster1/idle.glb" id="2_idle"]
+[ext_resource type="PackedScene" uid="uid://blv1233ke51ub" path="res://monster1/moster-run.glb" id="3_run"]
+[ext_resource type="PackedScene" uid="uid://dkoe70t5wm6j" path="res://monster1/moster-attack.glb" id="4_attack"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_monster"]
+radius = 0.5
+height = 2.0
+
+[node name="Monster1" type="CharacterBody3D"]
+script = ExtResource("1_mscript")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("CapsuleShape3D_monster")
+
+[node name="IdleModel" parent="." instance=ExtResource("2_idle")]
+
+[node name="RunModel" parent="." instance=ExtResource("3_run")]
+visible = false
+
+[node name="AttackModel" parent="." instance=ExtResource("4_attack")]
+visible = false

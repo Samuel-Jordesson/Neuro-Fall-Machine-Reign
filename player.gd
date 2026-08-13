@@ -30,6 +30,14 @@ var my_skeleton: Skeleton3D = null
 var arm_bone_names: Array[StringName] = []
 var was_on_floor: bool = true
 
+# --- Vida ---
+signal health_changed(current: float, max: float)
+signal died
+@export_group("Vida")
+@export var max_health: float = 100.0
+var health: float = 100.0
+var is_dead: bool = false
+
 @export_group("Configuração da Arma (Na Mão)")
 @export var pos_arma: Vector3 = Vector3(0, 0, 0)
 @export var rot_arma: Vector3 = Vector3(0, 0, 0)
@@ -101,6 +109,8 @@ var _swim_move_blend := 0.0
 var _swim_bones := {}
 
 func _ready():
+	add_to_group("player")
+	health = max_health
 	var inputs = {
 		"move_up": KEY_W,
 		"move_down": KEY_S,
@@ -1070,3 +1080,24 @@ func _update_rope_visual(delta: float):
 	if not rope_mesh:
 		return
 	rope_mesh.update_rope(grapple_point, _rope_hand_pos(), rope_length, delta)
+
+# --- Sistema de dano / vida ---
+func take_damage(amount: float) -> void:
+	if is_dead:
+		return
+	health = clamp(health - amount, 0.0, max_health)
+	health_changed.emit(health, max_health)
+	print("Player tomou ", amount, " de dano. Vida: ", health)
+	if health <= 0.0:
+		_die()
+
+func heal(amount: float) -> void:
+	if is_dead:
+		return
+	health = clamp(health + amount, 0.0, max_health)
+	health_changed.emit(health, max_health)
+
+func _die() -> void:
+	is_dead = true
+	died.emit()
+	print("Player morreu!")

@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://jxs0tqfhpwbg"]
+
+[ext_resource type="Script" path="res://map_generator.gd" id="1_mapgen"]
+[ext_resource type="PackedScene" path="res://player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://dkbacc2iafwt5" path="res://monster1.tscn" id="3_monster"]
+[ext_resource type="Script" path="res://road_generator.gd" id="4_road"]
+[ext_resource type="PackedScene" uid="uid://34cia1jauldv" path="res://rua/rua.glb" id="5_rua"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+tonemap_mode = 2
+ssao_enabled = true
+
+[sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_map"]
+show_checkered = true
+
+[sub_resource type="Curve3D" id="Curve3D_road"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -45, 0, -18, 0, 0, 0, 0, 0, 0, 45, 0, -18),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="MapaPrincipal" type="Node3D"]
+script = ExtResource("1_mapgen")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 30, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Terrain3D" type="Terrain3D" parent="."]
+data_directory = "res://terreno"
+material = SubResource("Terrain3DMaterial_map")
+collision_mode = 3
+
+[node name="RoadSystem" type="Path3D" parent="."]
+curve = SubResource("Curve3D_road")
+script = ExtResource("4_road")
+road_scene = ExtResource("5_rua")
+mesh_length_override = 0.0
+forward_axis = 2
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, -8)
+
+[node name="Monster1" parent="." instance=ExtResource("3_monster")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, -2)
